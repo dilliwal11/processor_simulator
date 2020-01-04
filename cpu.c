@@ -438,7 +438,9 @@ strcpy(iq[iq_count].opcode, stage->opcode);
 iq[iq_count].rd = stage->rd;
 iq[iq_count].rs1 = stage->rs1;
 iq[iq_count].imm = stage->imm;
-
+iq[iq_count].rs1Ready = 0;
+iq[iq_count].rs2Ready = 0;
+iq[iq_count].valid = 1;
 iq_count++;
 
 
@@ -446,6 +448,7 @@ rob[rob_count].rob_pc = stage->pc;
 rob[rob_count].rd = stage->rd;
 rob[rob_count].rd_ready = 0;
 rob[rob_count].rd_value = 0;
+rob[rob_count].valid = 1;
 //rob[rob_count].opcode = stage->opcode;
 strcpy(rob[rob_count].opcode, stage->opcode);
 rob_count++;
@@ -482,20 +485,74 @@ samePc = stage->pc;
    //print_stage_content("", stage);
   }
 
-
-
-
-
-
-
-
-
-cpu->stage[INT_FU1] = cpu->stage[STATES];
-
-
+//cpu->stage[INT_FU1] = cpu->stage[STATES];
 return 0;
 }
 
+
+
+void iq_removeItem (int i){
+
+
+iq[i].iq_pc = 0;
+strcpy(iq[i].opcode, "");
+iq[i].rs1 = 0;
+iq[i].rs1Ready = 0;		    // Source-1 Register Address
+iq[i].rs2 =0;
+iq[i].rs2Ready= 0;
+iq[i].rs3 = 0;		    // Source-2 Register Address
+iq[i].rd = 0;		    // Destination Register Address
+iq[i].imm = 0;
+iq[i].valid = 0;
+
+
+}
+
+
+
+
+
+
+int issueInstruction(APEX_CPU* cpu) {
+
+for(int i = 0; i<iq_count; i++){
+
+if(iq[i].valid) {
+
+  if(strcmp(iq[i].opcode,"MOVC")==0){
+
+    strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+    cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+    cpu->stage[INT_FU1].rd = iq[i].rd;
+    cpu->stage[INT_FU1].imm = iq[i].imm;
+
+    iq_removeItem (i);
+
+
+  }
+
+  if(strcmp(iq[i].opcode,"ADDL")==0){
+      if(iq[i].rs1Ready){
+
+      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+      cpu->stage[INT_FU1].rd = iq[i].rd;
+      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+      cpu->stage[INT_FU1].imm = iq[i].imm;
+
+  iq_removeItem (i);
+
+    }
+
+
+
+  }
+}
+}
+
+return 0;
+
+}
 
 
 
@@ -513,11 +570,11 @@ int intFU1(APEX_CPU* cpu)
   CPU_Stage* stage = &cpu->stage[INT_FU1];
 
 
-	if(stage->stalled){
+	/*if(stage->stalled){
 	printf("INT1_FU_STAGE (STALL)\n");
 	cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
 	}
- if (!stage->busy && !stage->stalled) {
+ if (!stage->busy && !stage->stalled) {*/
 
 
 
@@ -593,7 +650,7 @@ int intFU1(APEX_CPU* cpu)
     if (ENABLE_DEBUG_MESSAGES) {
          print_stage_content("Instruction at INT1_FU_STAGE ---> ", stage);
          }
-  }
+
 
   return 0;
 }
@@ -601,18 +658,18 @@ int intFU2(APEX_CPU* cpu)
 
 {
   CPU_Stage* stage = &cpu->stage[INT_FU2];
-  CPU_Stage* ex1_stage = &cpu->stage[INT_FU1];
-  CPU_Stage* decode_stage = &cpu->stage[DRF];
-  CPU_Stage* fetch_stage = &cpu->stage[F];
- 	if(stage->stalled){
- 	numOfStall++;
-	printf("INT2_FU_STAGE(STALL)\n");
-	cpu->stage[MEM1] = cpu->stage[INT_FU2];
-	}
+  // CPU_Stage* ex1_stage = &cpu->stage[INT_FU1];
+  // CPU_Stage* decode_stage = &cpu->stage[DRF];
+  // CPU_Stage* fetch_stage = &cpu->stage[F];
+ 	// if(stage->stalled){
+ 	// numOfStall++;
+	// printf("INT2_FU_STAGE(STALL)\n");
+	// cpu->stage[MEM1] = cpu->stage[INT_FU2];
+	// }
 
 
 
- if (!stage->busy && !stage->stalled) {
+
 
     /* Store */
     if (strcmp(stage->opcode, "STORE") == 0) {
@@ -621,18 +678,27 @@ int intFU2(APEX_CPU* cpu)
     /* MOVC */
     if (strcmp(stage->opcode, "MOVC") == 0) {
 
+
+      stage->rd_value = stage->buffer;
+
+    }
+    if (strcmp(stage->opcode, "ADDL") == 0) {
+
+
+      stage->rd_value = stage->buffer;
+
     }
 
-    if (strcmp(stage->opcode, "BZ") == 0 && onetime ==0) {
-    cpu->pc = stage->pc + stage->imm;
-    cpu->stage[MEM1] = cpu->stage[INT_FU2];
-
-    memset(stage, 0, sizeof(CPU_Stage));
-    memset(ex1_stage, 0, sizeof(CPU_Stage));
-    memset(decode_stage, 0, sizeof(CPU_Stage));
+    // if (strcmp(stage->opcode, "BZ") == 0 && onetime ==0) {
+    // cpu->pc = stage->pc + stage->imm;
+    // cpu->stage[MEM1] = cpu->stage[INT_FU2];
+    //
+    // memset(stage, 0, sizeof(CPU_Stage));
+    // memset(ex1_stage, 0, sizeof(CPU_Stage));
     // memset(decode_stage, 0, sizeof(CPU_Stage));
-    onetime++;
-    }
+    // // memset(decode_stage, 0, sizeof(CPU_Stage));
+    // onetime++;
+    // }
     /* Copy data from Execute latch to Memory latch*/
     cpu->stage[WB] = cpu->stage[INT_FU2];
 
@@ -641,7 +707,7 @@ int intFU2(APEX_CPU* cpu)
       print_stage_content("Instruction at INT2_FU_STAGE --->", stage);
 
     }
-  }
+
 
 
   return 0;
@@ -786,35 +852,86 @@ CPU_Stage* stage = &cpu->stage[WB];
    }
    return 0;
 }
-
-
-
 */
+
+
+
+void commitROB (APEX_CPU* cpu){
+
+  if (rob[headROB].rd_ready)
+  {
+    cpu->regs[rob[headROB].rd] = rob[headROB].rd_value;
+
+
+    for (int i = 0;i<iq_count;i++){
+      if (strcmp(iq[i].opcode, "ADDL") == 0) {
+        if(iq[i].rs1 == rob[i].rd){
+          iq[i].rs1_value = rob[i].rd_value;
+          iq[i].rs1Ready = 1;
+        }
+      }
+// similarly or othere instruction depending on rs1, rs2
+
+
+    }
+
+
+    rob[headROB].valid = 0;
+    rob[headROB].rob_pc = 0;
+    rob[headROB].rd = 0;
+    rob[headROB].rd_value = 0;
+    strcpy(rob[headROB].opcode, "");
+    headROB++;
+
+  }
+
+
+}
+
+
 int writeback(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[WB];
 
-  if (!stage->busy && !stage->stalled) {
+for (int i = 0; i < rob_count; i++){
+
+if (rob[i].valid)
+{
+  if (rob[i].rob_pc == stage->pc ){
+
+    rob[i].rd_value = stage->rd_value;
+    rob[i].rd_ready = 1;
+
+  }
+}
+
+}
+
+
+
+
     /* Update register file */
-    if(strcmp(stage->opcode, "STORE") != 0 && strcmp(stage->opcode, "LOAD") != 0
-    && strcmp(stage->opcode, "STR") != 0 && strcmp(stage->opcode, "LDR") != 0 && stage->pc !=0 && strcmp(stage->opcode, "BZ") != 0)
-      {cpu->regs[stage->rd] = stage->buffer;
+    // if(strcmp(stage->opcode, "STORE") != 0 && strcmp(stage->opcode, "LOAD") != 0
+    // && strcmp(stage->opcode, "STR") != 0 && strcmp(stage->opcode, "LDR") != 0 && stage->pc !=0 && strcmp(stage->opcode, "BZ") != 0)
+    //   {
+
+        //cpu->regs[stage->rd] = stage->buffer;
       //printf("R%d %d ",stage->rd,stage->buffer);
 
-      } //Ask
-     for(int i=0;i<rd_val;i++)
-      {
-	       if(stage->rd==temp[i]){
-    	      temp[i] = -1;
-    	}
-      }
-      //flag = 0;
-      //write = 1;
+       //Ask
+     // for(int i=0;i<rd_val;i++)
+     //  {
+	   //     if(stage->rd==temp[i]){
+    	//       temp[i] = -1;
+    	// }
+     //  }
+     //  //flag = 0;
+     //  //write = 1;
       cpu->ins_completed++;
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("writeback---> ", stage);
     }
-  }
+
 
   return 0;
 }
@@ -854,7 +971,7 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
   while (1) {
 
     /* All the instructions committed, so exit */
-    if (cpu->ins_completed == atoi(second)) {
+    if (cpu->clock == atoi(second)) {
       printf("(apex) >> Simulation Complete");
 
 
@@ -870,6 +987,7 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
       printf("--------------------------------\n");
     }
 
+commitROB(cpu);
     writeback(cpu);
     //memory2(cpu);
     //memory1(cpu);
@@ -884,6 +1002,10 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
 
         intFU2(cpu);
 	      intFU1(cpu);
+
+
+
+        issueInstruction(cpu);
 
         stateCall(cpu);
 

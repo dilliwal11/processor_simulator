@@ -44,7 +44,8 @@ typedef struct CPU_Stage
   int rd;		    // Destination Register Address
   int imm;		    // Literal Value
   int rs1_value;	// Source-1 Register Value
-  int rs2_value;	// Source-2 Register Value
+  int rs2_value;
+  int rd_value;	// Source-2 Register Value
   int buffer;		// Latch to hold some value
   int mem_address;	// Computed Memory Address
   int busy;		    // Flag to indicate, stage is performing some action
@@ -59,8 +60,10 @@ typedef struct IQ{
 int iq_pc;
 char opcode[128];
 int rs1;
+int rs1_value;
 int rs1Ready;		    // Source-1 Register Address
 int rs2;
+int rs2_value;
 int rs2Ready;
 int rs3;		    // Source-2 Register Address
 int rd;		    // Destination Register Address
@@ -81,7 +84,8 @@ char opcode[128];
 //int rs3;		    // Source-2 Register Address
 int rd;
 int rd_value;
-int rd_ready;		    // Destination Register Address
+int rd_ready;
+int valid;	    // Destination Register Address
 //int imm;
 
 } ROB;
