@@ -410,21 +410,12 @@ int stateCall (APEX_CPU* cpu){
 CPU_Stage* stage = &cpu->stage[STATES];
 
 
-//if (!stage->busy && !stage->stalled) {
-
-/*  if(strcmp(stage->opcode,"MOVC")==0)
-  printf("not IQ-->(%d) %s,R%d,#%d \n",stage->pc,stage->opcode,
-       stage->rd,stage->imm);
-
-
-  if(strcmp(stage->opcode,"ADDL")==0)
-   printf("not IQ-->(%d) %s,R%d,R%d,#%d \n",stage->pc,stage->opcode,
-        stage->rd,stage->rs1,stage->imm);*/
 if(samePc!=stage->pc){
 iq[iq_count].iq_pc = stage->pc;
 strcpy(iq[iq_count].opcode, stage->opcode);
 iq[iq_count].rd = stage->rd;
 iq[iq_count].rs1 = stage->rs1;
+iq[iq_count].rs2 = stage->rs2;
 //iq[iq_count].rs1_value = stage->rs1;
 iq[iq_count].imm = stage->imm;
 iq[iq_count].rs1Ready = 0;
@@ -455,6 +446,19 @@ samePc = stage->pc;
         if(strcmp(iq[i].opcode,"ADDL")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
              iq[i].rd,iq[i].rs1,iq[i].imm);
+
+        if(strcmp(iq[i].opcode,"SUBL")==0)
+        printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
+              iq[i].rd,iq[i].rs1,iq[i].imm);
+
+        if(strcmp(iq[i].opcode,"ADD")==0)
+        printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+              iq[i].rd,iq[i].rs1,iq[i].rs2);
+
+        if(strcmp(iq[i].opcode,"SUB")==0)
+        printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+              iq[i].rd,iq[i].rs1,iq[i].rs2);
+
      //printf("%d\n",iq[i]->iq_count );
      //print_stage_content("", stage);
    }
@@ -470,11 +474,20 @@ samePc = stage->pc;
       if(strcmp(rob[i].opcode,"ADDL")==0)
       printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
            rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
-   //printf("%d\n",iq[i]->iq_count );
-   //print_stage_content("", stage);
+
+     if(strcmp(rob[i].opcode,"SUBL")==0)
+       printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+      rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+      if(strcmp(rob[i].opcode,"ADD")==0)
+        printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+       rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+       if(strcmp(rob[i].opcode,"SUB")==0)
+         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+        rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
   }
 
-//cpu->stage[INT_FU1] = cpu->stage[STATES];
 return 0;
 }
 
@@ -505,25 +518,20 @@ iq[i].valid = 0;
 int issueInstruction(APEX_CPU* cpu) {
 
 for(int i = 0; i<iq_count; i++){
-
 if(iq[i].valid) {
-
+  //MOVC
   if(strcmp(iq[i].opcode,"MOVC")==0){
-
     strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
     cpu->stage[INT_FU1].pc = iq[i].iq_pc;
     cpu->stage[INT_FU1].rd = iq[i].rd;
     cpu->stage[INT_FU1].imm = iq[i].imm;
 
     iq_removeItem (i);
-
-
   }
 
+// ADDL
   if(strcmp(iq[i].opcode,"ADDL")==0){
-    // printf("isReady: %d i: %d\n",iq[i].rs1Ready,i );
       if(iq[i].rs1Ready){
-
       strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
       cpu->stage[INT_FU1].pc = iq[i].iq_pc;
       cpu->stage[INT_FU1].rd = iq[i].rd;
@@ -532,13 +540,62 @@ if(iq[i].valid) {
       cpu->stage[INT_FU1].imm = iq[i].imm;
 
   iq_removeItem (i);
-
     }
-
-
-
-  }
 }
+// SUBL
+    if(strcmp(iq[i].opcode,"SUBL")==0){
+        if(iq[i].rs1Ready){
+        strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+        cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+        cpu->stage[INT_FU1].rd = iq[i].rd;
+        cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+        cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+        cpu->stage[INT_FU1].imm = iq[i].imm;
+
+    iq_removeItem (i);
+      }
+  }
+//ADD
+  if(strcmp(iq[i].opcode,"ADD")==0){
+      if(iq[i].rs1Ready && iq[i].rs2Ready  ){
+      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+      cpu->stage[INT_FU1].rd = iq[i].rd;
+      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+      cpu->stage[INT_FU1].rs2 = iq[i].rs2;
+      cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
+
+  iq_removeItem (i);
+    }
+  }
+//SUB
+  if(strcmp(iq[i].opcode,"SUB")==0){
+      if(iq[i].rs1Ready && iq[i].rs2Ready){
+      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+      cpu->stage[INT_FU1].rd = iq[i].rd;
+      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+      cpu->stage[INT_FU1].rs2 = iq[i].rs2;
+      cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
+
+  iq_removeItem (i);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+}
+
 }
 
 return 0;
@@ -546,29 +603,10 @@ return 0;
 }
 
 
-
-
-
-
-
-
-
-
-
 int intFU1(APEX_CPU* cpu)
 {
 
   CPU_Stage* stage = &cpu->stage[INT_FU1];
-
-
-	/*if(stage->stalled){
-	printf("INT1_FU_STAGE (STALL)\n");
-	cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
-	}
- if (!stage->busy && !stage->stalled) {*/
-
-
-
 
     /* Store */
     if (strcmp(stage->opcode, "STORE") == 0) {
@@ -604,21 +642,28 @@ int intFU1(APEX_CPU* cpu)
 
     if (strcmp(stage->opcode, "ADDL") == 0) {
      stage->buffer= stage->rs1_value+stage->imm;
-     printf("%d\n", stage->rs1_value);
+    // printf("%d\n", stage->rs1_value);
 
     }
 
 
     if (strcmp(stage->opcode, "SUBL") == 0) {
-     stage->buffer = cpu->regs[stage->rs1]-stage->imm;
+      stage->buffer= stage->rs1_value-stage->imm;
 
     }
 
 
     if (strcmp(stage->opcode, "ADD") == 0) {
-    stage->buffer = cpu->regs[stage->rs1]+cpu->regs[stage->rs2];
+    stage->buffer = stage->rs1_value+stage->rs2_value;
+    }
+
+    if (strcmp(stage->opcode, "SUB") == 0) {
+    stage->buffer = stage->rs1_value-stage->rs2_value;
 
     }
+
+
+
      if (strcmp(stage->opcode, "AND") == 0) {
     stage->buffer = cpu->regs[stage->rs1]&cpu->regs[stage->rs2];
 
@@ -628,9 +673,7 @@ int intFU1(APEX_CPU* cpu)
 
     }
 
-    if (strcmp(stage->opcode, "SUB") == 0) {
-     stage->buffer = cpu->regs[stage->rs1]-cpu->regs[stage->rs2];
-    }
+
 
     if (strcmp(stage->opcode, "MUL") == 0) {
     stage->buffer = cpu->regs[stage->rs1]*cpu->regs[stage->rs2];
@@ -650,18 +693,6 @@ int intFU2(APEX_CPU* cpu)
 
 {
   CPU_Stage* stage = &cpu->stage[INT_FU2];
-  // CPU_Stage* ex1_stage = &cpu->stage[INT_FU1];
-  // CPU_Stage* decode_stage = &cpu->stage[DRF];
-  // CPU_Stage* fetch_stage = &cpu->stage[F];
- 	// if(stage->stalled){
- 	// numOfStall++;
-	// printf("INT2_FU_STAGE(STALL)\n");
-	// cpu->stage[MEM1] = cpu->stage[INT_FU2];
-	// }
-
-
-
-
 
     /* Store */
     if (strcmp(stage->opcode, "STORE") == 0) {
@@ -669,17 +700,35 @@ int intFU2(APEX_CPU* cpu)
 
     /* MOVC */
     if (strcmp(stage->opcode, "MOVC") == 0) {
-
-
       stage->rd_value = stage->buffer;
 
     }
     if (strcmp(stage->opcode, "ADDL") == 0) {
-
-
-      stage->rd_value = stage->buffer;
+    stage->rd_value = stage->buffer;
 
     }
+
+    if (strcmp(stage->opcode, "ADD") == 0) {
+    stage->rd_value = stage->buffer;
+
+    }
+
+    if (strcmp(stage->opcode, "SUB") == 0) {
+    stage->rd_value = stage->buffer;
+
+    }
+
+
+    if (strcmp(stage->opcode, "SUBL") == 0) {
+    stage->rd_value = stage->buffer;
+
+    }
+
+
+
+
+
+
 
     // if (strcmp(stage->opcode, "BZ") == 0 && onetime ==0) {
     // cpu->pc = stage->pc + stage->imm;
@@ -858,14 +907,48 @@ void commitROB (APEX_CPU* cpu){
     for (int i = 0;i<iq_count;i++){
 
       if (strcmp(iq[i].opcode, "ADDL") == 0) {
-
         if(iq[i].rs1 == rob[headROB].rd){
           iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
-
-
         }
       }
+
+      if (strcmp(iq[i].opcode, "SUBL") == 0) {
+        if(iq[i].rs1 == rob[headROB].rd){
+          iq[i].rs1_value = rob[headROB].rd_value;
+          iq[i].rs1Ready = 1;
+        }
+      }
+
+      if (strcmp(iq[i].opcode, "SUB") == 0) {
+        if(iq[i].rs1 == rob[headROB].rd){
+          iq[i].rs1_value = rob[headROB].rd_value;
+          iq[i].rs1Ready = 1;
+          
+        }
+
+        if(iq[i].rs2 == rob[headROB].rd){
+          iq[i].rs2_value = rob[headROB].rd_value;
+          iq[i].rs2Ready = 1;
+        }
+      }
+
+      if (strcmp(iq[i].opcode, "ADD") == 0) {
+        if(iq[i].rs1 == rob[headROB].rd){
+          iq[i].rs1_value = rob[headROB].rd_value;
+          iq[i].rs1Ready = 1;
+        }
+
+        if(iq[i].rs2 == rob[headROB].rd){
+          iq[i].rs2_value = rob[headROB].rd_value;
+          iq[i].rs2Ready = 1;
+        }
+      }
+
+
+
+
+
 // similarly or othere instruction depending on rs1, rs2
 
 
