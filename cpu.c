@@ -144,7 +144,6 @@ static void print_instruction(CPU_Stage* stage)
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd, stage->rs1, stage->rs2);
   }
 
-
   if (strcmp(stage->opcode, "MOVC") == 0) {
     printf("%s,R%d,#%d ", stage->opcode, stage->rd, stage->imm);
   }
@@ -152,9 +151,6 @@ static void print_instruction(CPU_Stage* stage)
    if (strcmp(stage->opcode, "BZ") == 0) {
     printf("%s,#%d ", stage->opcode, stage->imm);
   }
-
-
-
 
   if (strcmp(stage->opcode, "ADDL") == 0) {
     printf(
@@ -169,14 +165,10 @@ static void print_instruction(CPU_Stage* stage)
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
   }
 
-
   if (strcmp(stage->opcode, "AND") == 0) {
     printf(
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
   }
-
-
-
 
    if (strcmp(stage->opcode, "SUB") == 0) {
     printf(
@@ -209,10 +201,6 @@ static void print_stage_content(char* name, CPU_Stage* stage)
 int fetch(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[F];
-
-
-
-
 
   if (!stage->busy && !stage->stalled) {
 
@@ -437,6 +425,7 @@ iq[iq_count].iq_pc = stage->pc;
 strcpy(iq[iq_count].opcode, stage->opcode);
 iq[iq_count].rd = stage->rd;
 iq[iq_count].rs1 = stage->rs1;
+//iq[iq_count].rs1_value = stage->rs1;
 iq[iq_count].imm = stage->imm;
 iq[iq_count].rs1Ready = 0;
 iq[iq_count].rs2Ready = 0;
@@ -479,8 +468,8 @@ samePc = stage->pc;
 
 
       if(strcmp(rob[i].opcode,"ADDL")==0)
-      printf("ROB-->(%d) %s,R%d \n",rob[i].rob_pc,rob[i].opcode,
-           rob[i].rd);
+      printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+           rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
    //printf("%d\n",iq[i]->iq_count );
    //print_stage_content("", stage);
   }
@@ -532,12 +521,14 @@ if(iq[i].valid) {
   }
 
   if(strcmp(iq[i].opcode,"ADDL")==0){
+    // printf("isReady: %d i: %d\n",iq[i].rs1Ready,i );
       if(iq[i].rs1Ready){
 
       strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
       cpu->stage[INT_FU1].pc = iq[i].iq_pc;
       cpu->stage[INT_FU1].rd = iq[i].rd;
       cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
       cpu->stage[INT_FU1].imm = iq[i].imm;
 
   iq_removeItem (i);
@@ -612,7 +603,8 @@ int intFU1(APEX_CPU* cpu)
 
 
     if (strcmp(stage->opcode, "ADDL") == 0) {
-     stage->buffer= cpu->regs[stage->rs1]+stage->imm;
+     stage->buffer= stage->rs1_value+stage->imm;
+     printf("%d\n", stage->rs1_value);
 
     }
 
@@ -864,10 +856,14 @@ void commitROB (APEX_CPU* cpu){
 
 
     for (int i = 0;i<iq_count;i++){
+
       if (strcmp(iq[i].opcode, "ADDL") == 0) {
-        if(iq[i].rs1 == rob[i].rd){
-          iq[i].rs1_value = rob[i].rd_value;
+
+        if(iq[i].rs1 == rob[headROB].rd){
+          iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
+
+
         }
       }
 // similarly or othere instruction depending on rs1, rs2
@@ -880,8 +876,9 @@ void commitROB (APEX_CPU* cpu){
     rob[headROB].rob_pc = 0;
     rob[headROB].rd = 0;
     rob[headROB].rd_value = 0;
+    rob[headROB].rd_ready = 0;
     strcpy(rob[headROB].opcode, "");
-    headROB++;
+    headROB ++;
 
   }
 
