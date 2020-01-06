@@ -16,8 +16,7 @@ enum
   STATES,
   INT_FU1,
   INT_FU2,
-  MEM1,
-  MEM2,
+  MUL_FU,
   WB,
   NUM_STAGES
 };
@@ -124,7 +123,7 @@ typedef struct APEX_CPU
   int regs_valid[32];
 
   /* Array of 5 CPU_stage */
-  CPU_Stage stage[8];
+  CPU_Stage stage[7];
 
 
 //  IQ iq[80];
@@ -158,6 +157,9 @@ fetch(APEX_CPU* cpu);
 
 int
 decode(APEX_CPU* cpu);
+
+int
+mulFU(APEX_CPU* cpu);
 
 int
 execute1(APEX_CPU* cpu);

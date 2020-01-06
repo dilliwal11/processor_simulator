@@ -30,6 +30,8 @@
   ROB rob[12];int tailROB = 0;int headROB = 0;
 int rob_count = 0;
 int iq_count = 0;
+
+//int mulCall = 0;
 //IQ iq[8];
 
 
@@ -442,7 +444,6 @@ samePc = stage->pc;
        printf("IQ-->(%d) %s,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
             iq[i].rd,iq[i].imm);
 
-
         if(strcmp(iq[i].opcode,"ADDL")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
              iq[i].rd,iq[i].rs1,iq[i].imm);
@@ -459,6 +460,10 @@ samePc = stage->pc;
         printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
               iq[i].rd,iq[i].rs1,iq[i].rs2);
 
+        if(strcmp(iq[i].opcode,"MUL")==0)
+        printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+        iq[i].rd,iq[i].rs1,iq[i].rs2);
+
      //printf("%d\n",iq[i]->iq_count );
      //print_stage_content("", stage);
    }
@@ -472,20 +477,26 @@ samePc = stage->pc;
 
 
       if(strcmp(rob[i].opcode,"ADDL")==0)
-      printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+        printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
            rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
 
-     if(strcmp(rob[i].opcode,"SUBL")==0)
-       printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
-      rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+      if(strcmp(rob[i].opcode,"SUBL")==0)
+        printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+       rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
 
       if(strcmp(rob[i].opcode,"ADD")==0)
         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
        rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
 
-       if(strcmp(rob[i].opcode,"SUB")==0)
+      if(strcmp(rob[i].opcode,"SUB")==0)
          printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
         rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+      if(strcmp(rob[i].opcode,"MUL")==0)
+        printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+        rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+
   }
 
 return 0;
@@ -494,8 +505,6 @@ return 0;
 
 
 void iq_removeItem (int i){
-
-
 iq[i].iq_pc = 0;
 strcpy(iq[i].opcode, "");
 iq[i].rs1 = 0;
@@ -506,14 +515,7 @@ iq[i].rs3 = 0;		    // Source-2 Register Address
 iq[i].rd = 0;		    // Destination Register Address
 iq[i].imm = 0;
 iq[i].valid = 0;
-
-
 }
-
-
-
-
-
 
 int issueInstruction(APEX_CPU* cpu) {
 
@@ -584,15 +586,21 @@ if(iq[i].valid) {
     }
   }
 
+  if(strcmp(iq[i].opcode,"MUL")==0){
+  //  mulCall = 1;
+  printf("mul call \n");
+      if(iq[i].rs1Ready && iq[i].rs2Ready){
+      strcpy(cpu->stage[MUL_FU].opcode, iq[i].opcode);
+      cpu->stage[MUL_FU].pc = iq[i].iq_pc;
+      cpu->stage[MUL_FU].rd = iq[i].rd;
+      cpu->stage[MUL_FU].rs1 = iq[i].rs1;
+      cpu->stage[MUL_FU].rs1_value = iq[i].rs1_value;
+      cpu->stage[MUL_FU].rs2 = iq[i].rs2;
+      cpu->stage[MUL_FU].rs2_value = iq[i].rs2_value;
 
-
-
-
-
-
-
-
-
+  iq_removeItem (i);
+    }
+  }
 
 }
 
@@ -601,6 +609,41 @@ if(iq[i].valid) {
 return 0;
 
 }
+
+
+int mulFU(APEX_CPU* cpu) {
+
+CPU_Stage* stage = &cpu->stage[MUL_FU];
+
+
+
+
+
+if (strcmp(stage->opcode, "MUL") == 0) {
+stage->buffer = stage->rs1_value*stage->rs2_value;
+stage->rd_value = stage->buffer;
+cpu->stage[WB] = cpu->stage[MUL_FU];
+
+}
+
+
+
+
+
+if (ENABLE_DEBUG_MESSAGES) {
+
+  print_stage_content("MUL_FU_STAGE--->", stage);
+
+}
+
+
+return 0;
+}
+
+
+
+
+
 
 
 int intFU1(APEX_CPU* cpu)
@@ -664,6 +707,7 @@ int intFU1(APEX_CPU* cpu)
 
 
 
+
      if (strcmp(stage->opcode, "AND") == 0) {
     stage->buffer = cpu->regs[stage->rs1]&cpu->regs[stage->rs2];
 
@@ -675,9 +719,9 @@ int intFU1(APEX_CPU* cpu)
 
 
 
-    if (strcmp(stage->opcode, "MUL") == 0) {
+    /*if (strcmp(stage->opcode, "MUL") == 0) {
     stage->buffer = cpu->regs[stage->rs1]*cpu->regs[stage->rs2];
-    }
+  }*/
 
     /* Copy data from Execute latch to Memory latch*/
     cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
@@ -724,22 +768,6 @@ int intFU2(APEX_CPU* cpu)
 
     }
 
-
-
-
-
-
-
-    // if (strcmp(stage->opcode, "BZ") == 0 && onetime ==0) {
-    // cpu->pc = stage->pc + stage->imm;
-    // cpu->stage[MEM1] = cpu->stage[INT_FU2];
-    //
-    // memset(stage, 0, sizeof(CPU_Stage));
-    // memset(ex1_stage, 0, sizeof(CPU_Stage));
-    // memset(decode_stage, 0, sizeof(CPU_Stage));
-    // // memset(decode_stage, 0, sizeof(CPU_Stage));
-    // onetime++;
-    // }
     /* Copy data from Execute latch to Memory latch*/
     cpu->stage[WB] = cpu->stage[INT_FU2];
 
@@ -924,7 +952,7 @@ void commitROB (APEX_CPU* cpu){
         if(iq[i].rs1 == rob[headROB].rd){
           iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
-          
+
         }
 
         if(iq[i].rs2 == rob[headROB].rd){
@@ -934,6 +962,17 @@ void commitROB (APEX_CPU* cpu){
       }
 
       if (strcmp(iq[i].opcode, "ADD") == 0) {
+        if(iq[i].rs1 == rob[headROB].rd){
+          iq[i].rs1_value = rob[headROB].rd_value;
+          iq[i].rs1Ready = 1;
+        }
+
+        if(iq[i].rs2 == rob[headROB].rd){
+          iq[i].rs2_value = rob[headROB].rd_value;
+          iq[i].rs2Ready = 1;
+        }
+      }
+      if (strcmp(iq[i].opcode, "MUL") == 0) {
         if(iq[i].rs1 == rob[headROB].rd){
           iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
@@ -1083,7 +1122,7 @@ commitROB(cpu);
         intFU2(cpu);
 	      intFU1(cpu);
 
-
+        mulFU(cpu);
 
         issueInstruction(cpu);
 
