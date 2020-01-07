@@ -84,7 +84,7 @@ static void create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rd = get_num_from_string(tokens[1]);
     ins->rs1 = get_num_from_string(tokens[2]);
     ins->imm = get_num_from_string(tokens[3]);
-  }  
+  }
    if (strcmp(ins->opcode, "SUBL") == 0) {
     ins->rd = get_num_from_string(tokens[1]);
     ins->rs1 = get_num_from_string(tokens[2]);
@@ -121,11 +121,6 @@ static void create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->rs1 = get_num_from_string(tokens[2]);
     ins->rs2 = get_num_from_string(tokens[3]);
   }
-
-
-
-
-
 }
 
 /*

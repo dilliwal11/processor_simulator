@@ -16,7 +16,12 @@ enum
   STATES,
   INT_FU1,
   INT_FU2,
-  MUL_FU,
+  MUL_FU1,
+  MUL_FU2,
+  MUL_FU3,
+  MEM1,
+  MEM2,
+  MEM3,
   WB,
   NUM_STAGES
 };
@@ -66,10 +71,37 @@ int rs2_value;
 int rs2Ready;
 int rs3;		    // Source-2 Register Address
 int rd;		    // Destination Register Address
+int rd_Ready;
 int imm;
 int valid;
 
 } IQ;
+
+
+
+typedef struct LSQ{
+
+int lsq_pc;
+char opcode[128];
+int rs1;
+int rs1_value;
+int rs1Ready;		    // Source-1 Register Address
+int rs2;
+int rs2_value;
+int rs2Ready;
+int rs3;		    // Source-2 Register Address
+int rd;
+int rd_value;
+int rd_compute_value_ready;
+int rd_ready;		    // Destination Register Address
+int imm;
+int valid;
+
+} LSQ;
+
+
+
+
 
 typedef struct ROB{
 
@@ -89,26 +121,6 @@ int valid;	    // Destination Register Address
 
 } ROB;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -123,7 +135,7 @@ typedef struct APEX_CPU
   int regs_valid[32];
 
   /* Array of 5 CPU_stage */
-  CPU_Stage stage[7];
+  CPU_Stage stage[12];
 
 
 //  IQ iq[80];

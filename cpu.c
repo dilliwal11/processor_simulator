@@ -28,8 +28,11 @@
   int rd_val = 0;int onetime = 0;int p[20];int i=0;
   IQ iq[8];
   ROB rob[12];int tailROB = 0;int headROB = 0;
+  LSQ lsq[6]; int lsq_count = 0;
 int rob_count = 0;
 int iq_count = 0;
+int sameDest = 0;
+
 
 //int mulCall = 0;
 //IQ iq[8];
@@ -98,7 +101,8 @@ APEX_CPU* APEX_cpu_init(const char* filename)
   for (int i = 1; i < NUM_STAGES; ++i) {
     cpu->stage[i].busy = 1;
   }
-
+cpu->data_memory[2]=5;
+cpu->data_memory[3]=5;
   return cpu;
   }
 
@@ -249,7 +253,7 @@ int fetch(APEX_CPU* cpu)
     cpu->stage[DRF] = cpu->stage[F];
 
     if (ENABLE_DEBUG_MESSAGES) {
-      print_stage_content("Fetch", stage);
+      print_stage_content("Fetch --->", stage);
     }
   }
 
@@ -268,130 +272,12 @@ int decode(APEX_CPU* cpu)
   CPU_Stage* stage = &cpu->stage[DRF];
 
 
-   pc = stage->pc;
-   temp[rd_val] = stage->rd;
-       /* Read data from register file for store */
-    if (strcmp(stage->opcode, "STORE") == 0) {
-    for(int i=0;i<rd_val;i++)
-      {
-	       if(stage->rs1==temp[i] || stage->rs2==temp[i]){
-    	      flag = 1;
-      }
-    }
-    }
+pc = stage->pc;
 
-    if (strcmp(stage->opcode, "STR") == 0) {
-    for(int i=0;i<rd_val;i++)
-      {
-	if(stage->rs1==temp[i] || stage->rs2==temp[i] || stage->rs3==temp[i] ){
-    	flag = 1;
-      }
-    }
-    }
-/* Read data from register file for store */
-    if (strcmp(stage->opcode, "LOAD") == 0) {
-    for(int i=0;i<rd_val;i++)
-      {
-	if(stage->rs1==temp[i]){
-    	flag = 1;
-
-      }
-    }
-    }
-
- if (strcmp(stage->opcode, "LDR") == 0) {
-    for(int i=0;i<rd_val;i++)
-      {
-	if(stage->rs1==temp[i]  || stage->rs2==temp[i]){
-    	flag = 1;
-
-      }
-    }
-  }
-
-    /* No Register file read needed for MOVC */
-    if (strcmp(stage->opcode, "MOVC") == 0) {
-
-    }
-
-    /*if (strcmp(stage->opcode, "BZ") == 0 && onetime ==0) {
-    cpu->pc = cpu->pc + stage->imm;
-    printf("%d",cpu->pc);
-    onetime++;
-    }*/
-
-     if (strcmp(stage->opcode, "ADD") == 0) {
-    	for(int i=0;i<rd_val;i++)
-      	{
-		if(stage->rs1==temp[i] || stage->rs2==temp[i] ){
-    		flag = 1;
-
-      	}
-    	}
-    }
-     if (strcmp(stage->opcode, "SUB") == 0) {
-
-
-    	for(int i=0;i<rd_val;i++)
-      	{
-		if(stage->rs1==temp[i] || stage->rs2==temp[i] ){
-    		flag = 1;
-
-      	}
-    	}
-    }
-    if (strcmp(stage->opcode, "AND") == 0) {
-    	for(int i=0;i<rd_val;i++)
-      	{
-		if(stage->rs1==temp[i] || stage->rs2==temp[i] ){
-    		flag = 1;
-
-      	}
-    	}
-    }
-
-
-     if (strcmp(stage->opcode, "ADDL") == 0) {
-      for(int i=0;i<rd_val;i++)
-      {
-	       if(stage->rs1==temp[i]){
-    	      flag = 1;
-
-      }
-    }
-   }
-
-if (strcmp(stage->opcode, "SUBL") == 0) {
-      for(int i=0;i<rd_val;i++)
-      {
-	       if(stage->rs1==temp[i]){
-    	      flag = 1;
-
-      }
-    }
-   }
-
-   if (strcmp(stage->opcode, "MUL") == 0) {
-      for(int i=0;i<rd_val;i++)
-      {
-	       if(stage->rs1==temp[i] || stage->rs2==temp[i] ){
-    	      flag = 1;
-
-      }
-    }
-   }
-
-	if(flag==1){
-	   stage->stalled = 1;
-
-     //return 0;
-	}
-    /* Copy data from decode latch to execute latch*/
-    //if(flag==0)
 
     cpu->stage[STATES] = cpu->stage[DRF];
     if (ENABLE_DEBUG_MESSAGES ) {
-      print_stage_content("Instruction at DECODE_RF_STAGE --->", stage);
+      print_stage_content("DECODE_RF_STAGE --->", stage);
       rd_val++;
     }
 
@@ -413,18 +299,7 @@ CPU_Stage* stage = &cpu->stage[STATES];
 
 
 if(samePc!=stage->pc){
-iq[iq_count].iq_pc = stage->pc;
-strcpy(iq[iq_count].opcode, stage->opcode);
-iq[iq_count].rd = stage->rd;
-iq[iq_count].rs1 = stage->rs1;
-iq[iq_count].rs2 = stage->rs2;
-//iq[iq_count].rs1_value = stage->rs1;
-iq[iq_count].imm = stage->imm;
-iq[iq_count].rs1Ready = 0;
-iq[iq_count].rs2Ready = 0;
-iq[iq_count].valid = 1;
-iq_count++;
-
+samePc = stage->pc;
 
 rob[rob_count].rob_pc = stage->pc;
 rob[rob_count].rd = stage->rd;
@@ -434,10 +309,42 @@ rob[rob_count].valid = 1;
 //rob[rob_count].opcode = stage->opcode;
 strcpy(rob[rob_count].opcode, stage->opcode);
 rob_count++;
-samePc = stage->pc;
+
+
+
+if(strcmp(stage->opcode,"LOAD")==0 || strcmp(stage->opcode,"LDR")==0 || strcmp(stage->opcode,"STORE")==0 )
+{
+  lsq[lsq_count].lsq_pc = stage->pc;
+  strcpy(lsq[lsq_count].opcode, stage->opcode);
+  lsq[lsq_count].rd = stage->rd;
+  lsq[lsq_count].rs1 = stage->rs1;
+  lsq[lsq_count].rs2 = stage->rs2;
+  //iq[iq_count].rs1_value = stage->rs1;
+  lsq[lsq_count].imm = stage->imm;
+  lsq[lsq_count].rs1Ready = 0;
+  lsq[lsq_count].rs2Ready = 0;
+  lsq[lsq_count].rd_ready = 0;
+
+  lsq[lsq_count].rd_compute_value_ready = 0;
+  lsq[lsq_count].valid = 1;
+  lsq_count++;
 }
- //printf("IQ (%d)\n",iq_count );
-      //print_stage_content("", stage);
+
+  iq[iq_count].iq_pc = stage->pc;
+  strcpy(iq[iq_count].opcode, stage->opcode);
+  iq[iq_count].rd = stage->rd;
+  iq[iq_count].rs1 = stage->rs1;
+  iq[iq_count].rs2 = stage->rs2;
+  //iq[iq_count].rs1_value = stage->rs1;
+  iq[iq_count].imm = stage->imm;
+  iq[iq_count].rs1Ready = 0;
+  iq[iq_count].rs2Ready = 0;
+  iq[iq_count].valid = 1;
+  iq_count++;
+
+
+}
+      printf("~~~~~~~~IQ~~~~~~~~\n" );
      for(int i = 0; i < iq_count; i++){
 
        if(strcmp(iq[i].opcode,"MOVC")==0)
@@ -447,6 +354,14 @@ samePc = stage->pc;
         if(strcmp(iq[i].opcode,"ADDL")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
              iq[i].rd,iq[i].rs1,iq[i].imm);
+
+             if(strcmp(iq[i].opcode,"LOAD")==0)
+             printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
+                  iq[i].rd,iq[i].rs1,iq[i].imm);
+
+                  if(strcmp(iq[i].opcode,"LDR")==0)
+                  printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+                        iq[i].rd,iq[i].rs1,iq[i].rs2);
 
         if(strcmp(iq[i].opcode,"SUBL")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
@@ -467,8 +382,9 @@ samePc = stage->pc;
      //printf("%d\n",iq[i]->iq_count );
      //print_stage_content("", stage);
    }
+printf("~~~~~~~~~~~~~~~~~~~\n\n" );
 
-
+printf("~~~~~~~~ROB~~~~~~~~\n" );
    for(int i = 0; i < rob_count; i++){
 
      if(strcmp(rob[i].opcode,"MOVC")==0)
@@ -496,12 +412,44 @@ samePc = stage->pc;
         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
         rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
 
+      if(strcmp(rob[i].opcode,"LOAD")==0)
+        printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+            rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+
+            if(strcmp(rob[i].opcode,"LDR")==0)
+              printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+             rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
 
   }
 
-return 0;
+
+printf("~~~~~~~~~~~~~~~~~~~\n" );
+
+
+
+printf("~~~~~~~~LSQ~~~~~~~~\n" );
+
+for(int i = 0; i < lsq_count; i++){
+
+  if(strcmp(lsq[i].opcode,"LOAD")==0)
+  printf("LSQ-->(%d) %s,R%d,R%d,#%d \n",lsq[i].lsq_pc,lsq[i].opcode,
+       lsq[i].rd,lsq[i].rs1,lsq[i].imm);
+
+       if(strcmp(lsq[i].opcode,"LDR")==0)
+       printf("LSQ-->(%d) %s,R%d,R%d,R%d \n",lsq[i].lsq_pc,lsq[i].opcode,
+            lsq[i].rd,lsq[i].rs1,lsq[i].rs2);
 }
 
+printf("~~~~~~~~~~~~~~~~~~~\n" );
+
+
+
+
+return 0;
+
+}
 
 
 void iq_removeItem (int i){
@@ -515,9 +463,27 @@ iq[i].rs3 = 0;		    // Source-2 Register Address
 iq[i].rd = 0;		    // Destination Register Address
 iq[i].imm = 0;
 iq[i].valid = 0;
+
+
 }
 
-int issueInstruction(APEX_CPU* cpu) {
+void lsq_removeItem (int i)
+{
+lsq[i].lsq_pc = 0;
+strcpy(lsq[i].opcode, "");
+lsq[i].rs1 = 0;
+lsq[i].rs1Ready = 0;		    // Source-1 Register Address
+lsq[i].rs2 =0;
+lsq[i].rs2Ready= 0;
+lsq[i].rs3 = 0;		    // Source-2 Register Address
+lsq[i].rd = 0;		    // Destination Register Address
+lsq[i].imm = 0;
+lsq[i].valid = 0;
+}
+
+
+
+void issueInstruction(APEX_CPU* cpu) {
 
 for(int i = 0; i<iq_count; i++){
 if(iq[i].valid) {
@@ -529,19 +495,22 @@ if(iq[i].valid) {
     cpu->stage[INT_FU1].imm = iq[i].imm;
 
     iq_removeItem (i);
+
   }
 
 // ADDL
   if(strcmp(iq[i].opcode,"ADDL")==0){
       if(iq[i].rs1Ready){
+        printf(" addl i:%d %d\n",i,iq[i].rd );
+
       strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
       cpu->stage[INT_FU1].pc = iq[i].iq_pc;
       cpu->stage[INT_FU1].rd = iq[i].rd;
       cpu->stage[INT_FU1].rs1 = iq[i].rs1;
       cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
       cpu->stage[INT_FU1].imm = iq[i].imm;
-
   iq_removeItem (i);
+
     }
 }
 // SUBL
@@ -587,58 +556,203 @@ if(iq[i].valid) {
   }
 
   if(strcmp(iq[i].opcode,"MUL")==0){
-  //  mulCall = 1;
-  printf("mul call \n");
+      printf("rs1 %d, rs2 %d\n",iq[i].rs1_value,iq[i].rs2_value );
       if(iq[i].rs1Ready && iq[i].rs2Ready){
-      strcpy(cpu->stage[MUL_FU].opcode, iq[i].opcode);
-      cpu->stage[MUL_FU].pc = iq[i].iq_pc;
-      cpu->stage[MUL_FU].rd = iq[i].rd;
-      cpu->stage[MUL_FU].rs1 = iq[i].rs1;
-      cpu->stage[MUL_FU].rs1_value = iq[i].rs1_value;
-      cpu->stage[MUL_FU].rs2 = iq[i].rs2;
-      cpu->stage[MUL_FU].rs2_value = iq[i].rs2_value;
+          printf(" mul i:%d %d\n",i,iq[i].rd );
+      strcpy(cpu->stage[MUL_FU1].opcode, iq[i].opcode);
+      cpu->stage[MUL_FU1].pc = iq[i].iq_pc;
+      cpu->stage[MUL_FU1].rd = iq[i].rd;
+      cpu->stage[MUL_FU1].rs1 = iq[i].rs1;
+      cpu->stage[MUL_FU1].rs1_value = iq[i].rs1_value;
+      cpu->stage[MUL_FU1].rs2 = iq[i].rs2;
+      cpu->stage[MUL_FU1].rs2_value = iq[i].rs2_value;
 
   iq_removeItem (i);
     }
+  }
+
+
+  if(strcmp(iq[i].opcode,"LOAD")==0){
+  if(iq[i].rs1Ready){
+      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+      cpu->stage[INT_FU1].rd = iq[i].rd;
+      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+      cpu->stage[INT_FU1].imm = iq[i].imm;
+  iq_removeItem (i);
+
+}
+}
+
+
+if(strcmp(iq[i].opcode,"LDR")==0){
+if(iq[i].rs1Ready && iq[i].rs2Ready){
+    strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+    cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+    cpu->stage[INT_FU1].rd = iq[i].rd;
+    cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+    cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+    cpu->stage[INT_FU1].rs2 = iq[i].rs2;
+    cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
+
+iq_removeItem (i);
+}
+}
+
+
+}
+}
+
+
+
+}
+
+
+
+void lsqUpdate(APEX_CPU* cpu){
+
+  for(int i = 0; i<lsq_count; i++){
+  if(lsq[i].valid && lsq[i].rd_compute_value_ready) {
+
+    if(strcmp(lsq[i].opcode,"LOAD")==0 || strcmp(lsq[i].opcode,"LDR")==0 ){
+
+        //if(lsq[i].rs1Ready){
+        strcpy(cpu->stage[MEM1].opcode, lsq[i].opcode);
+        cpu->stage[MEM1].pc = lsq[i].lsq_pc;
+        cpu->stage[MEM1].rd = lsq[i].rd;
+        cpu->stage[MEM1].rs1 = lsq[i].rs1;
+        cpu->stage[MEM1].rs1_value = lsq[i].rs1_value;
+        cpu->stage[MEM1].rs2 = lsq[i].rs2;
+        cpu->stage[MEM1].rs2_value = lsq[i].rs2_value;
+        cpu->stage[MEM1].imm = lsq[i].imm;
+        cpu->stage[MEM1].rd_value = lsq[i].rd_value;
+        lsq_removeItem (i);
+
+    //  }
+
   }
 
 }
 
 }
 
-return 0;
-
-}
-
-
-int mulFU(APEX_CPU* cpu) {
-
-CPU_Stage* stage = &cpu->stage[MUL_FU];
-
-
-
-
-
-if (strcmp(stage->opcode, "MUL") == 0) {
-stage->buffer = stage->rs1_value*stage->rs2_value;
-stage->rd_value = stage->buffer;
-cpu->stage[WB] = cpu->stage[MUL_FU];
 
 }
 
 
 
 
+
+
+
+int mem1 (APEX_CPU* cpu){
+CPU_Stage* stage = &cpu->stage[MEM1];
+
+if (strcmp(stage->opcode, "LOAD") == 0 || strcmp(stage->opcode, "LDR") == 0  ) {
+
+stage->rd_value = cpu->data_memory[stage->rd_value];
+
+cpu->stage[MEM2] = cpu->stage[MEM1];
+}
 
 if (ENABLE_DEBUG_MESSAGES) {
-
-  print_stage_content("MUL_FU_STAGE--->", stage);
-
+  print_stage_content("MEM1----->", stage);
 }
-
-
 return 0;
 }
+
+
+int mem2 (APEX_CPU* cpu){
+CPU_Stage* stage = &cpu->stage[MEM2];
+
+if (strcmp(stage->opcode, "LOAD") == 0 || strcmp(stage->opcode, "LDR") == 0) {
+
+//stage->rd_value = cpu->data_memory[stage->rd_value];
+
+cpu->stage[MEM3] = cpu->stage[MEM2];
+}
+
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("MEM2----->", stage);
+}
+return 0;
+
+
+}
+
+int mem3 (APEX_CPU* cpu){
+CPU_Stage* stage = &cpu->stage[MEM3];
+
+if (strcmp(stage->opcode, "LOAD") == 0 || strcmp(stage->opcode, "LDR") == 0) {
+
+//stage->rd_value = cpu->data_memory[stage->rd_value];
+
+cpu->stage[WB] = cpu->stage[MEM3];
+}
+
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("MEM3----->", stage);
+}
+return 0;
+
+
+}
+
+
+
+
+
+int mulFU1(APEX_CPU* cpu) {
+CPU_Stage* stage = &cpu->stage[MUL_FU1];
+if (strcmp(stage->opcode, "MUL") == 0) {
+stage->buffer = stage->rs1_value*stage->rs2_value;
+
+cpu->stage[MUL_FU2] = cpu->stage[MUL_FU1];
+}
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("MUL_FU_STAGE_1--->", stage);
+}
+return 0;
+}
+
+
+int mulFU2(APEX_CPU* cpu) {
+CPU_Stage* stage = &cpu->stage[MUL_FU2];
+if (strcmp(stage->opcode, "MUL") == 0) {
+stage->rd_value = stage->buffer;
+cpu->stage[MUL_FU3] = cpu->stage[MUL_FU2];
+}
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("MUL_FU_STAGE_2--->", stage);
+}
+return 0;
+}
+
+
+
+int mulFU3(APEX_CPU* cpu) {
+CPU_Stage* stage = &cpu->stage[MUL_FU3];
+if (strcmp(stage->opcode, "MUL") == 0) {
+cpu->stage[WB] = cpu->stage[MUL_FU3];
+}
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("MUL_FU_STAGE_3--->", stage);
+}
+return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -663,19 +777,15 @@ int intFU1(APEX_CPU* cpu)
 
     }
 
-
     if (strcmp(stage->opcode, "LOAD") == 0) {
-     stage->buffer = cpu->regs[stage->rs1]+stage->imm;
-
+     stage->buffer = stage->rs1_value+stage->imm;
 
     }
     if (strcmp(stage->opcode, "LDR") == 0) {
-     stage->buffer = cpu->regs[stage->rs1]+cpu->regs[stage->rs2];
+     stage->buffer = stage->rs1_value+stage->rs2_value;
 
 
     }
-
-
     /* MOVC */
     if (strcmp(stage->opcode, "MOVC") == 0) {
     stage->buffer = stage->imm;
@@ -686,16 +796,11 @@ int intFU1(APEX_CPU* cpu)
     if (strcmp(stage->opcode, "ADDL") == 0) {
      stage->buffer= stage->rs1_value+stage->imm;
     // printf("%d\n", stage->rs1_value);
-
     }
-
-
     if (strcmp(stage->opcode, "SUBL") == 0) {
       stage->buffer= stage->rs1_value-stage->imm;
 
     }
-
-
     if (strcmp(stage->opcode, "ADD") == 0) {
     stage->buffer = stage->rs1_value+stage->rs2_value;
     }
@@ -704,10 +809,6 @@ int intFU1(APEX_CPU* cpu)
     stage->buffer = stage->rs1_value-stage->rs2_value;
 
     }
-
-
-
-
      if (strcmp(stage->opcode, "AND") == 0) {
     stage->buffer = cpu->regs[stage->rs1]&cpu->regs[stage->rs2];
 
@@ -716,23 +817,17 @@ int intFU1(APEX_CPU* cpu)
     stage->buffer = cpu->regs[stage->rs1]|cpu->regs[stage->rs2];
 
     }
-
-
-
-    /*if (strcmp(stage->opcode, "MUL") == 0) {
-    stage->buffer = cpu->regs[stage->rs1]*cpu->regs[stage->rs2];
-  }*/
-
     /* Copy data from Execute latch to Memory latch*/
     cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
 
     if (ENABLE_DEBUG_MESSAGES) {
-         print_stage_content("Instruction at INT1_FU_STAGE ---> ", stage);
+         print_stage_content("INT1_FU_STAGE ---> ", stage);
          }
-
 
   return 0;
 }
+
+
 int intFU2(APEX_CPU* cpu)
 
 {
@@ -749,6 +844,29 @@ int intFU2(APEX_CPU* cpu)
     }
     if (strcmp(stage->opcode, "ADDL") == 0) {
     stage->rd_value = stage->buffer;
+
+    }
+    if (strcmp(stage->opcode, "LOAD") == 0 || strcmp(stage->opcode, "LDR") == 0) {
+    //stage->rd_value = stage->buffer;
+    for (int i = 0; i< lsq_count;i++){
+      if (stage->pc == lsq[i].lsq_pc )
+      {
+        lsq[i].rs1_value = stage->rs1_value;
+        lsq[i].rs2_value = stage->rs2_value;
+        lsq[i].imm = stage->imm;
+        lsq[i].rd_value = stage->buffer;
+        lsq[i].rd_compute_value_ready =1;
+      }
+    }
+
+    //cpu->stage[MEM1] = cpu->stage[INT_FU2];
+
+    if (ENABLE_DEBUG_MESSAGES) {
+
+      print_stage_content("INT2_FU_STAGE --->", stage);
+
+        return 0;
+    }
 
     }
 
@@ -773,7 +891,7 @@ int intFU2(APEX_CPU* cpu)
 
     if (ENABLE_DEBUG_MESSAGES) {
 
-      print_stage_content("Instruction at INT2_FU_STAGE --->", stage);
+      print_stage_content("INT2_FU_STAGE --->", stage);
 
     }
 
@@ -782,186 +900,25 @@ int intFU2(APEX_CPU* cpu)
   return 0;
 
 }
-
-
-
-
-
-
-
-/*
- *  Memory Stage of APEX Pipeline
- *
- *  Note : You are free to edit this function according to your
- * 				 implementation
- */
-/*
-int memory1(APEX_CPU* cpu)
-{
-  CPU_Stage* stage = &cpu->stage[MEM1];
-
-
-
-  	if(stage->stalled){
-	printf("(STALL)\n");
-	cpu->stage[MEM2] = cpu->stage[MEM1];
-	}
-
-
-
-  if (!stage->busy && !stage->stalled) {
-
-
-    if (strcmp(stage->opcode, "STORE") == 0) {
-
-    cpu->data_memory[stage->buffer] = cpu->regs[stage->rs1];
-  ;
-
-    }
-
-
-    if (strcmp(stage->opcode, "STR") == 0) {
-
-    cpu->data_memory[stage->buffer] = cpu->regs[stage->rs1];
-
-    }
-
-
-
-
-    if (strcmp(stage->opcode, "LOAD") == 0) {
-
-
-     cpu->regs[stage->rd] = cpu->data_memory[stage->buffer];
-
-
-    }
-
-    if (strcmp(stage->opcode, "LDR") == 0) {
-
-
-     cpu->regs[stage->rd] = cpu->data_memory[stage->buffer];
-
-
-    }
-
-    if (strcmp(stage->opcode, "MOVC") == 0) {
-    }
-
-    cpu->stage[MEM2] = cpu->stage[MEM1];
-
-    if (ENABLE_DEBUG_MESSAGES) {
-      //print_stage_content("Memory1", stage);
-    }
-  }
-
-
-  return 0;
-}
-int memory2(APEX_CPU* cpu)
-{
-  CPU_Stage* stage = &cpu->stage[MEM2];
-
-
-  if(stage->stalled){
-	printf("(STALL)\n");
-	cpu->stage[WB] = cpu->stage[MEM2];
-	}
-
-
-
-  if (!stage->busy && !stage->stalled) {
-
-    if (strcmp(stage->opcode, "STORE") == 0) {
-    }
-
-    if (strcmp(stage->opcode, "MOVC") == 0) {
-    }
-
-    cpu->stage[WB] = cpu->stage[MEM2];
-
-    if (ENABLE_DEBUG_MESSAGES) {
-      //print_stage_content("Memory2", stage);
-    }
-  }
-
-  return 0;
-}
-
-
-int mulFU (APEX_CPU* cpu){
-
-CPU_Stage* stage = &cpu->stage[WB];
- if(stage->stalled){
-	printf("MUL_FU_STAGE(STALL) \n");
-	}
- if (!stage->busy && !stage->stalled)
-  {
-	 if (ENABLE_DEBUG_MESSAGES) {
-      print_stage_content("Instruction at MUL_FU_STAGE--> ", stage);
-
-    }
-   }
-   return 0;
-
-}
-
-
-int branchFU(APEX_CPU* cpu) {
-CPU_Stage* stage = &cpu->stage[WB];
- if(stage->stalled){
-	printf("BRANCH_FU_STAGE(STALL) \n");
-	}
- if (!stage->busy && !stage->stalled)
-  {
-	 if (ENABLE_DEBUG_MESSAGES) {
-      print_stage_content("Instruction at BRANCH_FU_STAGE---> ", stage);
-
-    }
-   }
-   return 0;
-}
-*/
-
-
 
 void commitROB (APEX_CPU* cpu){
 
   if (rob[headROB].rd_ready)
   {
+// if(store)
     cpu->regs[rob[headROB].rd] = rob[headROB].rd_value;
 
 
     for (int i = 0;i<iq_count;i++){
 
-      if (strcmp(iq[i].opcode, "ADDL") == 0) {
-        if(iq[i].rs1 == rob[headROB].rd){
+      if (strcmp(iq[i].opcode, "ADDL") == 0 || strcmp(iq[i].opcode, "LOAD") == 0 || strcmp(iq[i].opcode, "SUBL") == 0) {
+        if(rob[headROB].rd ==iq[i].rs1)  {
           iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
         }
       }
 
-      if (strcmp(iq[i].opcode, "SUBL") == 0) {
-        if(iq[i].rs1 == rob[headROB].rd){
-          iq[i].rs1_value = rob[headROB].rd_value;
-          iq[i].rs1Ready = 1;
-        }
-      }
-
-      if (strcmp(iq[i].opcode, "SUB") == 0) {
-        if(iq[i].rs1 == rob[headROB].rd){
-          iq[i].rs1_value = rob[headROB].rd_value;
-          iq[i].rs1Ready = 1;
-
-        }
-
-        if(iq[i].rs2 == rob[headROB].rd){
-          iq[i].rs2_value = rob[headROB].rd_value;
-          iq[i].rs2Ready = 1;
-        }
-      }
-
-      if (strcmp(iq[i].opcode, "ADD") == 0) {
+      if (strcmp(iq[i].opcode, "ADD") == 0 || strcmp(iq[i].opcode, "LDR") == 0 || strcmp(iq[i].opcode, "MUL") == 0 || strcmp(iq[i].opcode, "SUB") == 0) {
         if(iq[i].rs1 == rob[headROB].rd){
           iq[i].rs1_value = rob[headROB].rd_value;
           iq[i].rs1Ready = 1;
@@ -972,27 +929,8 @@ void commitROB (APEX_CPU* cpu){
           iq[i].rs2Ready = 1;
         }
       }
-      if (strcmp(iq[i].opcode, "MUL") == 0) {
-        if(iq[i].rs1 == rob[headROB].rd){
-          iq[i].rs1_value = rob[headROB].rd_value;
-          iq[i].rs1Ready = 1;
-        }
-
-        if(iq[i].rs2 == rob[headROB].rd){
-          iq[i].rs2_value = rob[headROB].rd_value;
-          iq[i].rs2Ready = 1;
-        }
-      }
-
-
-
-
-
-// similarly or othere instruction depending on rs1, rs2
-
 
     }
-
 
     rob[headROB].valid = 0;
     rob[headROB].rob_pc = 0;
@@ -1025,33 +963,7 @@ if (rob[i].valid)
 }
 
 }
-
-
-
-
-    /* Update register file */
-    // if(strcmp(stage->opcode, "STORE") != 0 && strcmp(stage->opcode, "LOAD") != 0
-    // && strcmp(stage->opcode, "STR") != 0 && strcmp(stage->opcode, "LDR") != 0 && stage->pc !=0 && strcmp(stage->opcode, "BZ") != 0)
-    //   {
-
-        //cpu->regs[stage->rd] = stage->buffer;
-      //printf("R%d %d ",stage->rd,stage->buffer);
-
-       //Ask
-     // for(int i=0;i<rd_val;i++)
-     //  {
-	   //     if(stage->rd==temp[i]){
-    	//       temp[i] = -1;
-    	// }
-     //  }
-     //  //flag = 0;
-     //  //write = 1;
       cpu->ins_completed++;
-    if (ENABLE_DEBUG_MESSAGES) {
-      print_stage_content("writeback---> ", stage);
-    }
-
-
   return 0;
 }
 
@@ -1106,23 +1018,23 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
       printf("--------------------------------\n");
     }
 
-commitROB(cpu);
-    writeback(cpu);
-    //memory2(cpu);
-    //memory1(cpu);
-
-        //memFU(cpu);
-        //branchFU(cpu);
-        //mulFU(cpu);
+        commitROB(cpu);
+        writeback(cpu);
 
 
-        //memory2(cpu);
-        //memory1(cpu);
+
+        mem3(cpu);
+        mem2(cpu);
+        mem1(cpu);
+
+        lsqUpdate(cpu);
 
         intFU2(cpu);
 	      intFU1(cpu);
 
-        mulFU(cpu);
+        mulFU3(cpu);
+        mulFU2(cpu);
+        mulFU1(cpu);
 
         issueInstruction(cpu);
 
