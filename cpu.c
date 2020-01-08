@@ -527,29 +527,49 @@ if(iq[i].valid) {
     cpu->stage[INT_FU1].imm = iq[i].imm;
 
     iq_removeItem (i);
-break;
+    break;
   }
 
 // ADDL
-  if(strcmp(iq[i].opcode,"ADDL")==0 || strcmp(iq[i].opcode,"SUBL")==0 ){
-    printf("ADDL: %d\n",iq[i].rs1Ready );
-      if(iq[i].rs1Ready){
+  if(strcmp(iq[i].opcode,"ADDL")==0 || strcmp(iq[i].opcode,"SUBL")==0
+  || strcmp(iq[i].opcode,"LOAD")==0 || strcmp(iq[i].opcode,"STORE")==0){
+    if(cpu->regs_valid[iq[i].rs1])
+          {
+              for(int j =0;j<rob_count;j++){
+                  if(iq[i].rs1!=rob[j].rd) {
+                      rob_check_ready_to_issue =1;
+                      }
+                    }
+                if (rob_check_ready_to_issue ){
+                  strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+                  cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+                  cpu->stage[INT_FU1].rd = iq[i].rd;
+                  cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+                  cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+                  cpu->stage[INT_FU1].imm = iq[i].imm;
+                  rob_check_ready_to_issue =0;
+                  iq_removeItem (i);
+                  break;
+                }
+
+                printf("ADDL: %d\n",iq[i].rs1Ready );
+                if(iq[i].rs1Ready){
 
 
-      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
-      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
-      cpu->stage[INT_FU1].rd = iq[i].rd;
-      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
-      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
-      cpu->stage[INT_FU1].imm = iq[i].imm;
-  iq_removeItem (i);
-  break;
+                  strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+                  cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+                  cpu->stage[INT_FU1].rd = iq[i].rd;
+                  cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+                  cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+                  cpu->stage[INT_FU1].imm = iq[i].imm;
+                  iq_removeItem (i);
+                  break;
 
-    }
+                }
+              }
 }
-
 //ADD
-  if(strcmp(iq[i].opcode,"ADD")==0 || strcmp(iq[i].opcode,"SUB")==0){
+  if(strcmp(iq[i].opcode,"ADD")==0 || strcmp(iq[i].opcode,"SUB")==0 || strcmp(iq[i].opcode,"LDR")==0 || strcmp(iq[i].opcode,"STR")==0){
     if(cpu->regs_valid[iq[i].rs1] && cpu->regs_valid[iq[i].rs2])
           {
               for(int j =0;j<rob_count;j++){
@@ -557,6 +577,7 @@ break;
                       rob_check_ready_to_issue =1;
                       }
                     }
+
                     if (rob_check_ready_to_issue ){
                     strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
                     cpu->stage[INT_FU1].pc = iq[i].iq_pc;
@@ -570,100 +591,70 @@ break;
                   break;
                 }
 
-          }
-      if(iq[i].rs1Ready && iq[i].rs2Ready  ){
-        printf(" sub i:%d\n",i );
-      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
-      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
-      cpu->stage[INT_FU1].rd = iq[i].rd;
-      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
-      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
-      cpu->stage[INT_FU1].rs2 = iq[i].rs2;
-      cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
 
-  iq_removeItem (i);
-  break;
+                if(iq[i].rs1Ready && iq[i].rs2Ready  ){
+                  printf(" sub i:%d\n",i );
+                  strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
+                  cpu->stage[INT_FU1].pc = iq[i].iq_pc;
+                  cpu->stage[INT_FU1].rd = iq[i].rd;
+                  cpu->stage[INT_FU1].rs1 = iq[i].rs1;
+                  cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
+                  cpu->stage[INT_FU1].rs2 = iq[i].rs2;
+                  cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
 
+                  iq_removeItem (i);
+                  break;
+}
     }
   }
-
-
-
-
-
 
   if(strcmp(iq[i].opcode,"MUL")==0){
 
+    if(cpu->regs_valid[iq[i].rs1] && cpu->regs_valid[iq[i].rs2])
+          {
+              for(int j =0;j<rob_count;j++){
+                  if(iq[i].rs1!=rob[j].rd && iq[i].rs2!=rob[j].rd) {
+                      rob_check_ready_to_issue =1;
+                      }
+                    }
+                    if (rob_check_ready_to_issue ){
+                      strcpy(cpu->stage[MUL_FU1].opcode, iq[i].opcode);
+                      cpu->stage[MUL_FU1].pc = iq[i].iq_pc;
+                      cpu->stage[MUL_FU1].rd = iq[i].rd;
+                      cpu->stage[MUL_FU1].rs1 = iq[i].rs1;
+                      cpu->stage[MUL_FU1].rs1_value = iq[i].rs1_value;
+                      cpu->stage[MUL_FU1].rs2 = iq[i].rs2;
+                      cpu->stage[MUL_FU1].rs2_value = iq[i].rs2_value;
+                      rob_check_ready_to_issue =0;
+                      iq_removeItem (i);
+                      break;
+                    }
 
 
 
+                    if(iq[i].rs1Ready && iq[i].rs2Ready  ){
+                      printf(" sub i:%d\n",i );
+                      strcpy(cpu->stage[MUL_FU1].opcode, iq[i].opcode);
+                      cpu->stage[MUL_FU1].pc = iq[i].iq_pc;
+                      cpu->stage[MUL_FU1].rd = iq[i].rd;
+                      cpu->stage[MUL_FU1].rs1 = iq[i].rs1;
+                      cpu->stage[MUL_FU1].rs1_value = iq[i].rs1_value;
+                      cpu->stage[MUL_FU1].rs2 = iq[i].rs2;
+                      cpu->stage[MUL_FU1].rs2_value = iq[i].rs2_value;
+
+                      iq_removeItem (i);
+                      break;
+
+                      }
+                    }
+
+                  }
 
 
-
-
-
-
-
-      if(iq[i].rs1Ready && iq[i].rs2Ready  ){
-        printf(" sub i:%d\n",i );
-      strcpy(cpu->stage[MUL_FU1].opcode, iq[i].opcode);
-      cpu->stage[MUL_FU1].pc = iq[i].iq_pc;
-      cpu->stage[MUL_FU1].rd = iq[i].rd;
-      cpu->stage[MUL_FU1].rs1 = iq[i].rs1;
-      cpu->stage[MUL_FU1].rs1_value = iq[i].rs1_value;
-      cpu->stage[MUL_FU1].rs2 = iq[i].rs2;
-      cpu->stage[MUL_FU1].rs2_value = iq[i].rs2_value;
-
-  iq_removeItem (i);
-  break;
-
-    }
-  }
-
-
-
-
-
-
-
-
-  if(strcmp(iq[i].opcode,"LOAD")==0 || strcmp(iq[i].opcode,"STORE")==0){
-    printf("storeIsuuue rs1_val: %d \n",iq[i].rs1 );
-        if(iq[i].rs1Ready){
-          printf(" store i:%d\n",i );
-      strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
-      cpu->stage[INT_FU1].pc = iq[i].iq_pc;
-      cpu->stage[INT_FU1].rd = iq[i].rd;
-      cpu->stage[INT_FU1].rs1 = iq[i].rs1;
-      cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
-      cpu->stage[INT_FU1].imm = iq[i].imm;
-  iq_removeItem (i);
-  break;
-}
-
-}
-
-if(strcmp(iq[i].opcode,"LDR")==0 || strcmp(iq[i].opcode,"STR")==0){
-if(iq[i].rs1Ready && iq[i].rs2Ready){
-    strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
-    cpu->stage[INT_FU1].pc = iq[i].iq_pc;
-    cpu->stage[INT_FU1].rd = iq[i].rd;
-    cpu->stage[INT_FU1].rs1 = iq[i].rs1;
-    cpu->stage[INT_FU1].rs1_value = iq[i].rs1_value;
-    cpu->stage[INT_FU1].rs2 = iq[i].rs2;
-    cpu->stage[INT_FU1].rs2_value = iq[i].rs2_value;
-
-iq_removeItem (i);
-break;
-}
-}
 
 
 }
 }
-
-
-
 }
 
 
