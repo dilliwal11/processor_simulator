@@ -49,7 +49,9 @@ typedef struct CPU_Stage
   int imm;		    // Literal Value
   int rs1_value;	// Source-1 Register Value
   int rs2_value;
-  int rd_value;	// Source-2 Register Value
+  int rd_value;
+  int compute_value;
+  // Source-2 Register Value
   int buffer;		// Latch to hold some value
   int mem_address;	// Computed Memory Address
   int busy;		    // Flag to indicate, stage is performing some action
@@ -92,8 +94,9 @@ int rs2Ready;
 int rs3;		    // Source-2 Register Address
 int rd;
 int rd_value;
-int rd_compute_value_ready;
-int rd_ready;		    // Destination Register Address
+int rd_value_ready;
+int compute_value;
+int rd_compute_value_ready;	    // Destination Register Address
 int imm;
 int valid;
 
