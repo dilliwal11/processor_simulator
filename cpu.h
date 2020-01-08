@@ -40,7 +40,8 @@ typedef struct APEX_Instruction
 /* Model of CPU stage latch */
 typedef struct CPU_Stage
 {
-  int pc;		    // Program Counter
+  int pc;
+  int same;    // Program Counter
   char opcode[128];	// Operation Code
   int rs1;		    // Source-1 Register Address
   int rs2;
@@ -138,7 +139,7 @@ typedef struct APEX_CPU
   int regs_valid[32];
 
   /* Array of 5 CPU_stage */
-  CPU_Stage stage[12];
+  CPU_Stage stage[13];
 
 
 //  IQ iq[80];
