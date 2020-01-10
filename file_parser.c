@@ -54,8 +54,13 @@ static void create_APEX_instruction(APEX_Instruction* ins, char* buffer)
     ins->imm = get_num_from_string(tokens[2]);
   }
 
+  if (strcmp(ins->opcode, "JUMP") == 0) {
+    ins->rd = get_num_from_string(tokens[1]);
+    ins->rs1 = get_num_from_string(tokens[2]);
+    ins->imm = get_num_from_string(tokens[3]);
+  }
 
-   if (strcmp(ins->opcode, "BZ") == 0) {
+   if (strcmp(ins->opcode, "BZ") == 0 || strcmp(ins->opcode, "BNZ") == 0) {
 
     ins->imm = get_num_from_string(tokens[1]);
   }

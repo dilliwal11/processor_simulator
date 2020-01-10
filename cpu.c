@@ -27,13 +27,17 @@
   int pc =0, pcval = 0; int samePc = 0;
   int rd_val = 0;int onetime = 0;int p[20];int i=0;
   IQ iq[8];
-  ROB rob[12];int tailROB = 0;int headROB = 0;
+   RenameTable rt[24]; int headRT = 0;
+   int first_time = 1;int equal = 0;
+  ROB rob[24];int tailROB = 0;int headROB = 0;
   LSQ lsq[6]; int lsq_count = 0;
 int rob_count = 0;
-int iq_count = 0;
+int iq_count = 0; int rt_count = 0;
 int sameDest = 0;
 int rob_check_ready_to_issue = 0;
 int samePcWB = 0;
+int z = 0;
+int flush_branch =0;
 //int mulCall = 0;
 //IQ iq[8];
 
@@ -55,10 +59,11 @@ APEX_CPU* APEX_cpu_init(const char* filename)
   memset(cpu->regs, 0, sizeof(int) * 32);
   //memset(cpu->iq, 0, sizeof(IQ) * 8);
   memset(p, -1, sizeof(int) * 32);
-  //memset(iq, 0, sizeof(int) * 8);
-  memset(cpu->regs_valid, 1, sizeof(int) * 32);
+
+  memset(cpu->regs_valid, 0, sizeof(int) * 32);
   memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
   memset(cpu->data_memory, 0, sizeof(int) * 4000);
+
 
 
   /* Parse input file and create code memory */
@@ -154,9 +159,13 @@ static void print_instruction(CPU_Stage* stage)
     printf("%s,R%d,#%d ", stage->opcode, stage->rd, stage->imm);
   }
 
-   if (strcmp(stage->opcode, "BZ") == 0) {
+   if (strcmp(stage->opcode, "BZ") == 0 || strcmp(stage->opcode, "BNZ") == 0) {
     printf("%s,#%d ", stage->opcode, stage->imm);
   }
+
+  if (strcmp(stage->opcode, "JUMP") == 0) {
+   printf("%s,R%d,#%d ", stage->opcode,stage->rs1, stage->imm);
+ }
 
   if (strcmp(stage->opcode, "ADDL") == 0) {
     printf(
@@ -171,11 +180,14 @@ static void print_instruction(CPU_Stage* stage)
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
   }
 
+  if (strcmp(stage->opcode, "OR") == 0) {
+    printf(
+      "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
+  }
   if (strcmp(stage->opcode, "AND") == 0) {
     printf(
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
   }
-
    if (strcmp(stage->opcode, "SUB") == 0) {
     printf(
       "%s,R%d,R%d,R%d ", stage->opcode, stage->rd,stage->rs1, stage->rs2);
@@ -231,21 +243,36 @@ int fetch(APEX_CPU* cpu)
     stage->rd = current_ins->rd;
 
 
+  /*  if(strcmp(stage->opcode,"")==0){
 
-    /* Update PC for next instruction */
-  //  if(flag==0){
+      return 0;
+    }*/
 
+    if (strcmp(cpu->stage[F].opcode,"")!=0)
+    {
 
-    /* Copy data from fetch latch to decode latch*/
-
-
-
-
-
-    if (strcmp(cpu->stage[F].opcode,"")!=0){
+    }
+    
       cpu->pc += 4;
+
+      if (flush_branch){
+        cpu->stage[F].pc = 0;
+        cpu->stage[F].rs1 = 0;
+        cpu->stage[F].rs2 = 0;
+        strcpy(cpu->stage[F].opcode, "");
+        //cpu->stage[DRF] = cpu->stage[F];
+
+      }
+
+
+
+
     cpu->stage[DRF] = cpu->stage[F];
-}
+
+
+
+
+
     if (ENABLE_DEBUG_MESSAGES) {
       print_stage_content("Fetch --->", stage);
     }
@@ -254,6 +281,7 @@ int fetch(APEX_CPU* cpu)
     cpu->stage[F].rs1 = 0;
     cpu->stage[F].rs2 = 0;
     strcpy(cpu->stage[F].opcode, "");
+
 
   }
 
@@ -267,14 +295,81 @@ int fetch(APEX_CPU* cpu)
  * 				 implementation
  */
 
+void showRt(){
+  printf("\n~~~~~~~~Rename Table~~~~~~~~~\n" );
+
+     for (int k = headRT;k<rt_count; k++){
+
+      printf("R[%d]--->P%d\n",rt[k].p_rd,rt[k].p_id);
+     }
+   printf("~~~~~~~~~~~~~~~~~\n" );
+
+
+
+}
+
+
+
+
 int decode(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[DRF];
 
 
-pc = stage->pc;
+    pc = stage->pc;
 
-    if (strcmp(cpu->stage[DRF].opcode,"")!=0)
+    if (strcmp(stage->opcode,"")==0){
+        //showRt();
+
+       //cpu->stage[STATES] = cpu->stage[DRF];
+     return 0;
+//    cpu->stage[STATES] = cpu->stage[DRF];
+
+          }
+          if (flush_branch){
+            cpu->stage[DRF].pc = 0;
+            cpu->stage[DRF].rs1 = 0;
+            cpu->stage[DRF].rs2 = 0;
+            strcpy(cpu->stage[DRF].opcode, "");
+            flush_branch = 0;
+            //cpu->stage[DRF] = cpu->stage[DRF];
+
+          }
+
+
+
+
+
+
+
+
+
+    if(strcmp(stage->opcode,"STR") != 0 || strcmp(stage->opcode,"STORE") != 0 || strcmp(stage->opcode,"BZ")!= 0)
+    {
+
+
+    for (int i = headRT;i<rt_count; i++){
+          if(rt[i].p_rd == stage->rd )
+          {
+            equal = 1;
+            break;
+          }
+
+    }
+
+    if(!equal ){
+      rt[rt_count].p_rd =  stage->rd;
+      rt[rt_count].p_id = rt_count;
+      rt_count++;
+
+      //printf("p_rd: %d rd: %d p: %d \n",rt[rt].p_rd ,stage->rd,rt[i].p_id );
+    }
+    equal =0;
+    }
+//showRt();
+
+
+
     cpu->stage[STATES] = cpu->stage[DRF];
     if (ENABLE_DEBUG_MESSAGES ) {
       print_stage_content("DECODE_RF_STAGE --->", stage);
@@ -284,10 +379,17 @@ pc = stage->pc;
 
 
 
+
+
     cpu->stage[DRF].pc = 0;
     cpu->stage[DRF].rs1 = 0;
     cpu->stage[DRF].rs2 = 0;
     strcpy(cpu->stage[DRF].opcode, "");
+
+
+  //  showRt();
+
+
 
 
 
@@ -361,9 +463,24 @@ if(strcmp(stage->opcode,"LOAD")==0 || strcmp(stage->opcode,"LDR")==0 || strcmp(s
        printf("IQ-->(%d) %s,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
             iq[i].rd,iq[i].imm);
 
+
+            if(strcmp(iq[i].opcode,"BZ")==0)
+            printf("IQ-->(%d) %s ,#%d \n",iq[i].iq_pc,iq[i].opcode,
+                 iq[i].imm);
+                 if(strcmp(iq[i].opcode,"BNZ")==0)
+                 printf("IQ-->(%d) %s ,#%d \n",iq[i].iq_pc,iq[i].opcode,
+                      iq[i].imm);
+
+
+                      if(strcmp(iq[i].opcode,"JUMP")==0)
+                      printf("IQ-->(%d) %s ,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,iq[i].rs1,
+                           iq[i].imm);
+
         if(strcmp(iq[i].opcode,"ADDL")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
              iq[i].rd,iq[i].rs1,iq[i].imm);
+
+
 
       if(strcmp(iq[i].opcode,"LOAD")==0)
         printf("IQ-->(%d) %s,R%d,R%d,#%d \n",iq[i].iq_pc,iq[i].opcode,
@@ -390,6 +507,15 @@ if(strcmp(stage->opcode,"LOAD")==0 || strcmp(stage->opcode,"LDR")==0 || strcmp(s
         printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
               iq[i].rd,iq[i].rs1,iq[i].rs2);
 
+
+              if(strcmp(iq[i].opcode,"AND")==0)
+              printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+                    iq[i].rd,iq[i].rs1,iq[i].rs2);
+
+                    if(strcmp(iq[i].opcode,"OR")==0)
+                    printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
+                          iq[i].rd,iq[i].rs1,iq[i].rs2);
+
         if(strcmp(iq[i].opcode,"SUB")==0)
         printf("IQ-->(%d) %s,R%d,R%d,R%d \n",iq[i].iq_pc,iq[i].opcode,
               iq[i].rd,iq[i].rs1,iq[i].rs2);
@@ -409,7 +535,12 @@ printf("~~~~~~~~ROB~~~~~~~~\n" );
      if(strcmp(rob[i].opcode,"MOVC")==0)
      printf("ROB-->(%d) %s R%d rd_Ready:%d rd_Value:%d\n",rob[i].rob_pc,rob[i].opcode,rob[i].rd, rob[i].rd_ready, rob[i].rd_value
           );
-
+          if(strcmp(rob[i].opcode,"BZ")==0 || strcmp(rob[i].opcode,"BNZ")==0)
+          printf("ROB-->(%d) %s  \n",rob[i].rob_pc,rob[i].opcode
+               );
+               if(strcmp(rob[i].opcode,"JUMP")==0)
+               printf("ROB-->(%d) %s \n",rob[i].rob_pc,rob[i].opcode
+                    );
 
       if(strcmp(rob[i].opcode,"ADDL")==0)
         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
@@ -422,6 +553,19 @@ printf("~~~~~~~~ROB~~~~~~~~\n" );
       if(strcmp(rob[i].opcode,"ADD")==0)
         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
        rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+
+       if(strcmp(rob[i].opcode,"AND")==0)
+         printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+        rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+
+
+               if(strcmp(rob[i].opcode,"OR")==0)
+                 printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
+                rob[i].rd, rob[i].rd_ready, rob[i].rd_value);
+
+
 
       if(strcmp(rob[i].opcode,"SUB")==0)
          printf("ROB-->(%d) %s,R%d rd_Ready:%d rd_Value:%d \n",rob[i].rob_pc,rob[i].opcode,
@@ -530,6 +674,20 @@ if(iq[i].valid) {
     break;
   }
 
+
+  if(strcmp(iq[i].opcode,"BZ")==0){
+    strcpy(cpu->stage[BRANCH].opcode, iq[i].opcode);
+    cpu->stage[BRANCH].pc = iq[i].iq_pc;
+    cpu->stage[BRANCH].imm = iq[i].imm;
+
+    iq_removeItem (i);
+    break;
+  }
+
+
+
+
+
 // ADDL
   if(strcmp(iq[i].opcode,"ADDL")==0 || strcmp(iq[i].opcode,"SUBL")==0
   || strcmp(iq[i].opcode,"LOAD")==0 || strcmp(iq[i].opcode,"STORE")==0){
@@ -552,7 +710,7 @@ if(iq[i].valid) {
                   break;
                 }
 
-                printf("ADDL: %d\n",iq[i].rs1Ready );
+                //printf("ADDL: %d\n",iq[i].rs1Ready );
                 if(iq[i].rs1Ready){
 
 
@@ -569,7 +727,9 @@ if(iq[i].valid) {
               }
 }
 //ADD
-  if(strcmp(iq[i].opcode,"ADD")==0 || strcmp(iq[i].opcode,"SUB")==0 || strcmp(iq[i].opcode,"LDR")==0 || strcmp(iq[i].opcode,"STR")==0){
+  if(strcmp(iq[i].opcode,"ADD")==0 || strcmp(iq[i].opcode,"SUB")==0 ||
+  strcmp(iq[i].opcode,"LDR")==0 || strcmp(iq[i].opcode,"STR")==0 || strcmp(iq[i].opcode,"AND")==0 || strcmp(iq[i].opcode,"OR")==0){
+    printf("valid: %d\n",iq[i].rs2_value);
     if(cpu->regs_valid[iq[i].rs1] && cpu->regs_valid[iq[i].rs2])
           {
               for(int j =0;j<rob_count;j++){
@@ -593,7 +753,7 @@ if(iq[i].valid) {
 
 
                 if(iq[i].rs1Ready && iq[i].rs2Ready  ){
-                  printf(" sub i:%d\n",i );
+                  //printf(" sub i:%d\n",i );
                   strcpy(cpu->stage[INT_FU1].opcode, iq[i].opcode);
                   cpu->stage[INT_FU1].pc = iq[i].iq_pc;
                   cpu->stage[INT_FU1].rd = iq[i].rd;
@@ -633,7 +793,7 @@ if(iq[i].valid) {
 
 
                     if(iq[i].rs1Ready && iq[i].rs2Ready  ){
-                      printf(" sub i:%d\n",i );
+                      //printf(" sub i:%d\n",i );
                       strcpy(cpu->stage[MUL_FU1].opcode, iq[i].opcode);
                       cpu->stage[MUL_FU1].pc = iq[i].iq_pc;
                       cpu->stage[MUL_FU1].rd = iq[i].rd;
@@ -678,14 +838,14 @@ void lsqUpdate(APEX_CPU* cpu){
         cpu->stage[MEM1].rd_value = lsq[i].rd_value;
 
         lsq_removeItem (i);
-break;
+
     //  }
 
   }
 
 
   if(strcmp(lsq[i].opcode,"STORE")==0 || strcmp(lsq[i].opcode,"STR")==0){
-      printf("lsq rd_value_ready %d\n",lsq[i].rd_value_ready  );
+    //  printf("lsq rd_value_ready %d\n",lsq[i].rd_value_ready  );
       if(lsq[i].rd_value_ready ) {
       //if(lsq[i].rs1Ready){
       strcpy(cpu->stage[MEM1].opcode, lsq[i].opcode);
@@ -718,7 +878,83 @@ break;
 
 
 
+int branch (APEX_CPU* cpu){
+CPU_Stage* stage = &cpu->stage[BRANCH];
+if (strcmp(stage->opcode, "BZ") == 0 ) {
 
+if (z == 0){
+
+/*cpu->stage[F].pc = 0;
+cpu->stage[F].rs1 = 0;
+cpu->stage[F].rs2 = 0;
+strcpy(cpu->stage[F].opcode, "");
+
+
+cpu->stage[DRF].pc = 0;
+cpu->stage[DRF].rs1 = 0;
+cpu->stage[DRF].rs2 = 0;
+strcpy(cpu->stage[DRF].opcode, "");*/
+
+flush_branch =1;
+
+cpu->pc = cpu->pc + stage->imm;
+
+}
+
+}
+if ( strcmp(stage->opcode, "BNZ") == 0){
+
+if (z != 0)
+{
+  cpu->stage[F].pc = 0;
+  cpu->stage[F].rs1 = 0;
+  cpu->stage[F].rs2 = 0;
+  strcpy(cpu->stage[F].opcode, "");
+
+
+  cpu->stage[DRF].pc = 0;
+  cpu->stage[DRF].rs1 = 0;
+  cpu->stage[DRF].rs2 = 0;
+  strcpy(cpu->stage[DRF].opcode, "");
+
+
+
+  cpu->pc = cpu->pc + stage->imm;
+
+
+
+}
+
+}
+
+
+
+if ( strcmp(stage->opcode, "JUMP") == 0){
+
+
+  cpu->pc = cpu->pc + stage->rs1_value + stage->imm;
+
+
+}
+
+
+
+
+
+  //cpu->stage[WB] = cpu->stage[BRANCH];
+
+if (ENABLE_DEBUG_MESSAGES) {
+  print_stage_content("BRANCH----->", stage);
+}
+
+
+cpu->stage[BRANCH].pc = 0;
+cpu->stage[BRANCH].imm = 0;
+strcpy(cpu->stage[BRANCH].opcode, "");
+
+return 0;
+
+}
 
 
 int mem1 (APEX_CPU* cpu){
@@ -831,7 +1067,7 @@ return 0;
 int mulFU1(APEX_CPU* cpu) {
 CPU_Stage* stage = &cpu->stage[MUL_FU1];
 
-printf("mulFU1 %d\n",stage->pc );
+//printf("mulFU1 %d\n",stage->pc );
 
 
 if (strcmp(stage->opcode, "MUL") == 0) {
@@ -857,13 +1093,6 @@ strcpy(cpu->stage[MUL_FU1].opcode, "");
 return 0;
 }
 
-void flush(APEX_CPU* cpu, int i){
-  cpu->stage[i].pc = 0;
-  cpu->stage[i].rs1 = 0;
-  cpu->stage[i].rs2 = 0;
-strcpy(cpu->stage[i].opcode, "");
-
-}
 
 
 int mulFU2(APEX_CPU* cpu) {
@@ -901,23 +1130,28 @@ CPU_Stage* stage = &cpu->stage[MUL_FU3];
 
 
 
-
-
-printf("%d\n", stage->same);
-if (strcmp(stage->opcode, "MUL") == 0) {
-cpu->stage[WB] = cpu->stage[MUL_FU3];
-
-
-
-}
 if (ENABLE_DEBUG_MESSAGES) {
   print_stage_content("MUL_FU_STAGE_3--->", stage);
 }
+
+//printf("%d\n", stage->same);
+if (strcmp(stage->opcode, "MUL") == 0) {
+
+if(!cpu->stage[WB].busy){
+cpu->stage[WB] = cpu->stage[MUL_FU3];
 
 cpu->stage[MUL_FU3].pc = 0;
 cpu->stage[MUL_FU3].rs1 = 0;
 cpu->stage[MUL_FU3].rs2 = 0;
 strcpy(cpu->stage[MUL_FU3].opcode, "");
+
+}
+
+
+}
+
+
+
 return 0;
 }
 
@@ -983,6 +1217,7 @@ int intFU1(APEX_CPU* cpu)
     }
     if (strcmp(stage->opcode, "ADD") == 0) {
     stage->buffer = stage->rs1_value+stage->rs2_value;
+      printf("add fu1: %d\n",stage->rs2_value );
     }
 
     if (strcmp(stage->opcode, "SUB") == 0) {
@@ -990,13 +1225,18 @@ int intFU1(APEX_CPU* cpu)
 
     }
      if (strcmp(stage->opcode, "AND") == 0) {
-    stage->buffer = cpu->regs[stage->rs1]&cpu->regs[stage->rs2];
+    stage->buffer = stage->rs1_value&stage->rs2_value;
 
     }
     if (strcmp(stage->opcode, "OR") == 0) {
-    stage->buffer = cpu->regs[stage->rs1]|cpu->regs[stage->rs2];
+    stage->buffer = stage->rs1_value|stage->rs2_value;
 
     }
+
+    if (stage->buffer==0){
+       z = 1;
+    }
+    else z = 0;
     /* Copy data from Execute latch to Memory latch*/
     cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
 
@@ -1062,17 +1302,15 @@ int intFU2(APEX_CPU* cpu)
       cpu->stage[INT_FU2].rs1 = 0;
       cpu->stage[INT_FU2].rs2 = 0;
       strcpy(cpu->stage[INT_FU2].opcode, "");
+      return 0;
 
-
-
-
-        return 0;
     }
 
     }
 
-    if (strcmp(stage->opcode, "ADD") == 0) {
+    if (strcmp(stage->opcode, "ADD") == 0 || strcmp(stage->opcode, "AND") == 0 || strcmp(stage->opcode, "OR") == 0) {
     stage->rd_value = stage->buffer;
+
 
     }
 
@@ -1088,8 +1326,14 @@ int intFU2(APEX_CPU* cpu)
     }
 
     /* Copy data from Execute latch to Memory latch*/
-    if (strcmp(cpu->stage[INT_FU2].opcode,"")!=0)
+    if (strcmp(cpu->stage[INT_FU2].opcode,"")!=0){
+
     cpu->stage[WB] = cpu->stage[INT_FU2];
+    printf("add: %d\n",stage->rd_value );
+    cpu->stage[WB].busy = 1;
+}
+
+
 
     if (ENABLE_DEBUG_MESSAGES) {
 
@@ -1110,13 +1354,17 @@ void commitROB (APEX_CPU* cpu){
 
   if (rob[headROB].rd_ready)
   {
+    for(int i = headRT;i<rt_count;i++){
+      if(rt[i].p_rd == rob[headROB].rd)
+    headRT ++;
+  }
 // if(store)
   if (strcmp(rob[headROB].opcode,"STORE")!=0 || strcmp(rob[headROB].opcode,"STR")!=0){
 
     cpu->regs[rob[headROB].rd] = rob[headROB].rd_value;
     cpu->regs_valid[rob[headROB].rd] = 1;
 }
-else {
+
 
   for (int i = 0;i<lsq_count;i++){
         if(rob[headROB].rd == lsq[i].rd ){
@@ -1127,7 +1375,7 @@ else {
 
 
 
-}
+
 
     for (int i = 0;i<iq_count;i++){
           if(rob[headROB].rd == iq[i].rs1 ){
@@ -1144,8 +1392,7 @@ else {
 
 
 
-
-
+            printf("ROB retired instruction --> pc(%d) %s \n\n",rob[headROB].rob_pc, rob[headROB].opcode );
 
     rob[headROB].valid = 0;
     rob[headROB].rob_pc = 0;
@@ -1155,8 +1402,19 @@ else {
     strcpy(rob[headROB].opcode, "");
     headROB ++;
 
-  }
 
+
+  }
+  else if (strcmp(rob[headROB].opcode,"BZ")==0)
+{
+  rob[headROB].valid = 0;
+  rob[headROB].rob_pc = 0;
+  rob[headROB].rd = 0;
+  rob[headROB].rd_value = 0;
+  rob[headROB].rd_ready = 0;
+  strcpy(rob[headROB].opcode, "");
+  headROB ++;
+}
 
 }
 
@@ -1165,7 +1423,9 @@ int writeback(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[WB];
 
-  printf(" %s\n",stage[WB].opcode );
+
+
+  //printf(" %s\n",stage[WB].opcode );
   // if (strcmp(stage->opcode, "STORE") == 0 )
 
 
@@ -1181,6 +1441,7 @@ if (rob[i].valid)
     rob[i].rd_value = stage->rd_value;
     rob[i].rd_ready = 1;
 
+
   }
 }
 
@@ -1191,6 +1452,7 @@ if (rob[i].valid)
       cpu->stage[WB].pc = 0;
       cpu->stage[WB].rs1 = 0;
       cpu->stage[WB].rs2 = 0;
+      cpu->stage[WB].busy = 0;
       strcpy(cpu->stage[WB].opcode, "");
 
 
@@ -1249,6 +1511,7 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
     }
 
         commitROB(cpu);
+
         writeback(cpu);
 
 
@@ -1262,6 +1525,8 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
         intFU2(cpu);
 	      intFU1(cpu);
 
+        branch(cpu);
+
         mulFU3(cpu);
         mulFU2(cpu);
         mulFU1(cpu);
@@ -1270,6 +1535,7 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
 
         stateCall(cpu);
 
+showRt();
         decode(cpu);
         fetch(cpu);
 

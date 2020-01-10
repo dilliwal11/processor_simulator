@@ -14,6 +14,7 @@ enum
   F,
   DRF,
   STATES,
+  BRANCH,
   INT_FU1,
   INT_FU2,
   MUL_FU1,
@@ -125,6 +126,37 @@ int valid;	    // Destination Register Address
 
 } ROB;
 
+
+
+typedef struct RenameTable{
+
+int rt_pc;
+
+
+// int rs1;
+// int rs1Ready;		    // Source-1 Register Address
+// int rs2;
+// int rs2Ready;
+//int rs3;		    // Source-2 Register Address
+int p_rd;
+int p_id;
+int p_rd_value;
+int rd_ready;
+int valid;	    // Destination Register Address
+//int imm;
+
+} RenameTable;
+
+
+
+
+
+
+
+
+
+
+
 /* Model of APEX CPU */
 typedef struct APEX_CPU
 {
@@ -139,7 +171,7 @@ typedef struct APEX_CPU
   int regs_valid[32];
 
   /* Array of 5 CPU_stage */
-  CPU_Stage stage[13];
+  CPU_Stage stage[14];
 
 
 //  IQ iq[80];
