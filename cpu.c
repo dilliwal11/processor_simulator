@@ -248,12 +248,25 @@ int fetch(APEX_CPU* cpu)
       return 0;
     }*/
 
-    if (strcmp(cpu->stage[F].opcode,"")!=0)
+    if (strcmp(cpu->stage[F].opcode,"")==0)
     {
+      cpu->stage[F].pc = 0;
+      cpu->stage[F].rs1 = 0;
+      cpu->stage[F].rs2 = 0;
+      cpu->stage[F].imm = 0;
+      cpu->stage[F].rd = 0;
+      strcpy(cpu->stage[F].opcode, "");
+
+      if (ENABLE_DEBUG_MESSAGES) {
+        print_stage_content("Fetch --->", stage);
+      }
+
+      return 0;
+
 
     }
-    
-      cpu->pc += 4;
+
+
 
       if (flush_branch){
         cpu->stage[F].pc = 0;
@@ -269,7 +282,7 @@ int fetch(APEX_CPU* cpu)
 
     cpu->stage[DRF] = cpu->stage[F];
 
-
+      cpu->pc += 4;
 
 
 
@@ -316,16 +329,18 @@ int decode(APEX_CPU* cpu)
   CPU_Stage* stage = &cpu->stage[DRF];
 
 
+
     pc = stage->pc;
 
     if (strcmp(stage->opcode,"")==0){
-        //showRt();
+      cpu->stage[DRF].pc = 0;
+      cpu->stage[DRF].rs1 = 0;
+      cpu->stage[DRF].rs2 = 0;
+      strcpy(cpu->stage[DRF].opcode, "");
+      flush_branch = 0;
+      }
 
-       //cpu->stage[STATES] = cpu->stage[DRF];
-     return 0;
-//    cpu->stage[STATES] = cpu->stage[DRF];
 
-          }
           if (flush_branch){
             cpu->stage[DRF].pc = 0;
             cpu->stage[DRF].rs1 = 0;
@@ -335,14 +350,6 @@ int decode(APEX_CPU* cpu)
             //cpu->stage[DRF] = cpu->stage[DRF];
 
           }
-
-
-
-
-
-
-
-
 
     if(strcmp(stage->opcode,"STR") != 0 || strcmp(stage->opcode,"STORE") != 0 || strcmp(stage->opcode,"BZ")!= 0)
     {
@@ -368,7 +375,7 @@ int decode(APEX_CPU* cpu)
     }
 //showRt();
 
-
+showRt();
 
     cpu->stage[STATES] = cpu->stage[DRF];
     if (ENABLE_DEBUG_MESSAGES ) {
@@ -884,16 +891,7 @@ if (strcmp(stage->opcode, "BZ") == 0 ) {
 
 if (z == 0){
 
-/*cpu->stage[F].pc = 0;
-cpu->stage[F].rs1 = 0;
-cpu->stage[F].rs2 = 0;
-strcpy(cpu->stage[F].opcode, "");
 
-
-cpu->stage[DRF].pc = 0;
-cpu->stage[DRF].rs1 = 0;
-cpu->stage[DRF].rs2 = 0;
-strcpy(cpu->stage[DRF].opcode, "");*/
 
 flush_branch =1;
 
@@ -1038,20 +1036,26 @@ if (strcmp(stage->opcode, "LOAD") == 0 || strcmp(stage->opcode, "LDR") == 0) {
 
 
 }
-if (strcmp(cpu->stage[MEM3].opcode,"")!=0)
-cpu->stage[WB] = cpu->stage[MEM3];
 
 if (ENABLE_DEBUG_MESSAGES) {
   print_stage_content("MEM3----->", stage);
 }
 
 
+if (strcmp(cpu->stage[MEM3].opcode,"")!=0){
 
-
+if(!cpu->stage[WB].busy){
+cpu->stage[WB] = cpu->stage[MEM3];
 cpu->stage[MEM3].pc = 0;
 cpu->stage[MEM3].rs1 = 0;
 cpu->stage[MEM3].rs2 = 0;
 strcpy(cpu->stage[MEM3].opcode, "");
+
+
+}
+}
+
+
 
 
 
@@ -1535,7 +1539,7 @@ int APEX_cpu_run(APEX_CPU* cpu,char  const* first,char  const* second )
 
         stateCall(cpu);
 
-showRt();
+
         decode(cpu);
         fetch(cpu);
 
