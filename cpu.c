@@ -38,6 +38,7 @@ int rob_check_ready_to_issue = 0;
 int samePcWB = 0;
 int z = 0;
 int flush_branch =0;
+int branch_pc =0;
 //int mulCall = 0;
 //IQ iq[8];
 
@@ -311,8 +312,8 @@ int fetch(APEX_CPU* cpu)
 void showRt(){
   printf("\n~~~~~~~~Rename Table~~~~~~~~~\n" );
 
-     for (int k = headRT;k<rt_count; k++){
-
+     for (int k = 0;k<rt_count; k++){
+       if(rt[k].valid)
       printf("R[%d]--->P%d\n",rt[k].p_rd,rt[k].p_id);
      }
    printf("~~~~~~~~~~~~~~~~~\n" );
@@ -355,7 +356,7 @@ int decode(APEX_CPU* cpu)
     {
 
 
-    for (int i = headRT;i<rt_count; i++){
+    for (int i = 0;i<rt_count; i++){
           if(rt[i].p_rd == stage->rd )
           {
             equal = 1;
@@ -367,6 +368,7 @@ int decode(APEX_CPU* cpu)
     if(!equal ){
       rt[rt_count].p_rd =  stage->rd;
       rt[rt_count].p_id = rt_count;
+      rt[rt_count].valid = 1;
       rt_count++;
 
       //printf("p_rd: %d rd: %d p: %d \n",rt[rt].p_rd ,stage->rd,rt[i].p_id );
@@ -626,12 +628,22 @@ for(int i = 0; i < lsq_count; i++){
 
 printf("~~~~~~~~~~~~~~~~~~~\n\n" );
 
+printf("~~~~~~~~ARF table~~~~~~~~\n" );
 
+for(int i =0; i<32;i++ ){
+
+if(cpu->regs_valid[i])
+printf("R%d--->%d\n",i,cpu->regs[i] );
+
+}
+
+printf("~~~~~~~~~~~~~~~~~~~\n\n" );
 
 
 return 0;
 
 }
+
 
 
 void iq_removeItem (int i){
@@ -1046,6 +1058,7 @@ if (strcmp(cpu->stage[MEM3].opcode,"")!=0){
 
 if(!cpu->stage[WB].busy){
 cpu->stage[WB] = cpu->stage[MEM3];
+cpu->stage[WB].busy = 1;
 cpu->stage[MEM3].pc = 0;
 cpu->stage[MEM3].rs1 = 0;
 cpu->stage[MEM3].rs2 = 0;
@@ -1355,18 +1368,26 @@ int intFU2(APEX_CPU* cpu)
 }
 
 void commitROB (APEX_CPU* cpu){
-
-  if (rob[headROB].rd_ready)
+  if (rob[headROB].rd_ready && headROB<rob_count)
   {
-    for(int i = headRT;i<rt_count;i++){
+    printf("**************************headROB: %d rob_count: %d\n",headROB,rob_count );
+
+
+
+    for(int i = 0;i<rt_count;i++){
       if(rt[i].p_rd == rob[headROB].rd)
-    headRT ++;
+    rt[i].valid = 0;
   }
 // if(store)
-  if (strcmp(rob[headROB].opcode,"STORE")!=0 || strcmp(rob[headROB].opcode,"STR")!=0){
+  if (strcmp(rob[headROB].opcode,"STORE")!=0 || strcmp(rob[headROB].opcode,"STR")!=0 || strcmp(rob[headROB].opcode,"BZ")!=0 || strcmp(rob[headROB].opcode,"BNZ")!=0
+   || strcmp(rob[headROB].opcode,"JUMP")!=0){
 
     cpu->regs[rob[headROB].rd] = rob[headROB].rd_value;
     cpu->regs_valid[rob[headROB].rd] = 1;
+
+
+
+
 }
 
 
