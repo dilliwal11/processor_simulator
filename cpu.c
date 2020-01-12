@@ -39,6 +39,7 @@ int samePcWB = 0;
 int z = 0;
 int flush_branch =0;
 int branch_pc =0;
+int current_branch_pc =0;
 //int mulCall = 0;
 //IQ iq[8];
 
@@ -217,6 +218,55 @@ static void print_stage_content(char* name, CPU_Stage* stage)
  *  Note : You are free to edit this function according to your
  * 				 implementation
  */
+ void remove_after_branch(int remove_branch_pc){
+   printf("oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo%d\n",remove_branch_pc );
+
+ for(int i =0;i<iq_count;i++){
+
+ if(iq[i].iq_pc >= remove_branch_pc)
+ {
+
+
+   iq[i].iq_pc = 0;
+ strcpy(iq[i].opcode, "");
+ iq[i].rs1 = 0;
+ iq[i].rs1Ready = 0;		    // Source-1 Register Address
+ iq[i].rs2 =0;
+ iq[i].rs2Ready= 0;
+ iq[i].rs3 = 0;		    // Source-2 Register Address
+ iq[i].rd = 0;		    // Destination Register Address
+ iq[i].imm = 0;
+ iq[i].valid = 0;
+ iq_count = iq_count-2;
+ }
+
+ }
+
+
+ for(int j = 0; j< rob_count;j++){
+
+   if(rob[j].rob_pc>=remove_branch_pc){
+
+     rob[j].rob_pc = 0;
+     rob[j].rd = 0;
+     rob[j].rd_ready = 0;
+     rob[j].rd_value = 0;
+     rob[j].valid = 1;
+     //rob[rob_count].opcode = stage->opcode;
+     strcpy(rob[j].opcode, "");
+
+     rob_count--;
+
+
+   }
+ }
+
+
+
+
+ }
+
+
 int fetch(APEX_CPU* cpu)
 {
   CPU_Stage* stage = &cpu->stage[F];
@@ -224,6 +274,12 @@ int fetch(APEX_CPU* cpu)
   if (!stage->busy && !stage->stalled) {
 
     /* Store current PC in fetch latch */
+
+    if(flush_branch){
+    cpu->pc = branch_pc;
+
+  flush_branch = 0;
+}
     stage->pc = cpu->pc;
 
     /* Index into code memory using this pc and copy all instruction fields into
@@ -269,14 +325,6 @@ int fetch(APEX_CPU* cpu)
 
 
 
-      if (flush_branch){
-        cpu->stage[F].pc = 0;
-        cpu->stage[F].rs1 = 0;
-        cpu->stage[F].rs2 = 0;
-        strcpy(cpu->stage[F].opcode, "");
-        //cpu->stage[DRF] = cpu->stage[F];
-
-      }
 
 
 
@@ -347,7 +395,9 @@ int decode(APEX_CPU* cpu)
             cpu->stage[DRF].rs1 = 0;
             cpu->stage[DRF].rs2 = 0;
             strcpy(cpu->stage[DRF].opcode, "");
-            flush_branch = 0;
+            print_stage_content("DECODE_RF_STAGE --->", stage);
+            return 0;
+
             //cpu->stage[DRF] = cpu->stage[DRF];
 
           }
@@ -414,13 +464,14 @@ showRt();
 
 
 
+
 int stateCall (APEX_CPU* cpu){
 
 CPU_Stage* stage = &cpu->stage[STATES];
 
-
+printf("check : %s\n",stage->opcode );
 if(samePc!=stage->pc){
-samePc = stage->pc;
+//samePc = stage->pc;
 
 rob[rob_count].rob_pc = stage->pc;
 rob[rob_count].rd = stage->rd;
@@ -462,6 +513,15 @@ if(strcmp(stage->opcode,"LOAD")==0 || strcmp(stage->opcode,"LDR")==0 || strcmp(s
   iq[iq_count].rs2Ready = 0;
   iq[iq_count].valid = 1;
   iq_count++;
+
+
+
+  if(flush_branch){
+
+  remove_after_branch(current_branch_pc);
+
+
+  }
 
 
 }
@@ -640,9 +700,21 @@ printf("R%d--->%d\n",i,cpu->regs[i] );
 printf("~~~~~~~~~~~~~~~~~~~\n\n" );
 
 
+  cpu->stage[STATES].pc = 0;
+  cpu->stage[STATES].rs1 = 0;
+  cpu->stage[STATES].rs2 = 0;
+  strcpy(cpu->stage[STATES].opcode, "");
+
+
 return 0;
 
 }
+
+
+
+
+
+
 
 
 
@@ -900,14 +972,18 @@ void lsqUpdate(APEX_CPU* cpu){
 int branch (APEX_CPU* cpu){
 CPU_Stage* stage = &cpu->stage[BRANCH];
 if (strcmp(stage->opcode, "BZ") == 0 ) {
-
+z=0;
 if (z == 0){
-
-
-
+current_branch_pc = stage->pc;
+printf("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh %d\n",stage->pc );
+  branch_pc = stage->pc + stage->imm;
 flush_branch =1;
 
-cpu->pc = cpu->pc + stage->imm;
+
+
+
+//cpu->pc = cpu->pc + stage->imm;
+
 
 }
 
@@ -916,7 +992,7 @@ if ( strcmp(stage->opcode, "BNZ") == 0){
 
 if (z != 0)
 {
-  cpu->stage[F].pc = 0;
+  /*cpu->stage[F].pc = 0;
   cpu->stage[F].rs1 = 0;
   cpu->stage[F].rs2 = 0;
   strcpy(cpu->stage[F].opcode, "");
@@ -925,11 +1001,11 @@ if (z != 0)
   cpu->stage[DRF].pc = 0;
   cpu->stage[DRF].rs1 = 0;
   cpu->stage[DRF].rs2 = 0;
-  strcpy(cpu->stage[DRF].opcode, "");
+  strcpy(cpu->stage[DRF].opcode, "");*/
 
 
-
-  cpu->pc = cpu->pc + stage->imm;
+  branch_pc = cpu->pc + stage->imm;
+  //cpu->pc = cpu->pc + stage->imm;
 
 
 
