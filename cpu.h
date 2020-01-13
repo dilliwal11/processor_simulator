@@ -113,9 +113,9 @@ typedef struct ROB{
 int rob_pc;
 char opcode[128];
 
-// int rs1;
+ int rs1;
 // int rs1Ready;		    // Source-1 Register Address
-// int rs2;
+ int rs2;
 // int rs2Ready;
 //int rs3;		    // Source-2 Register Address
 int rd;
