@@ -26,7 +26,7 @@
     int flag = 0, numOfStall =0;int write = 0;
     int pc =0, pcval = 0; int samePc = 0;
     int rd_val = 0;int onetime = 0;int p[20];int i=0;
-    IQ iq[8];
+    IQ iq[50];
      RenameTable rt[24]; int headRT = 0;
      int first_time = 1;int equal = 0;
     ROB rob[24];int tailROB = 0;int headROB = 0;
@@ -41,6 +41,7 @@
   int branch_pc =0;
   int current_branch_pc =0;
   int rd_commit_zero_count = 0;
+  int count_rt_to_invalid_rt_rd = 0;
   //int mulCall = 0;
   //IQ iq[8];
 
@@ -67,7 +68,10 @@
     memset(cpu->stage, 0, sizeof(CPU_Stage) * NUM_STAGES);
     memset(cpu->data_memory, 0, sizeof(int) * 4000);
 
-
+  /*  for(int i = 0; i< 24;i++){
+      rt[i].p_rd = -1;
+      rt[i].valid = 0;
+    }*/
 
     /* Parse input file and create code memory */
     cpu->code_memory = create_code_memory(filename, &cpu->code_memory_size);
@@ -238,7 +242,7 @@
    iq[i].rd = 0;		    // Destination Register Address
    iq[i].imm = 0;
    iq[i].valid = 0;
-   iq_count = iq_count-2;
+//  iq_count--;
    }
 
    }
@@ -256,7 +260,7 @@
        //rob[rob_count].opcode = stage->opcode;
        strcpy(rob[j].opcode, "");
 
-       rob_count--;
+       //rob_count--;
 
 
      }
@@ -266,6 +270,7 @@
 
   int fetch(APEX_CPU* cpu)
   {
+    //  printf("after flush_branch: %d\n",flush_branch);
     CPU_Stage* stage = &cpu->stage[F];
 
     if (!stage->busy && !stage->stalled) {
@@ -273,9 +278,11 @@
       /* Store current PC in fetch latch */
 
       if(flush_branch){
-      cpu->pc = branch_pc;
+        printf("after branch: %d\n",branch_pc );
+        cpu->pc = branch_pc;
+        current_branch_pc = 0;
 
-    flush_branch = 0;
+        flush_branch = 0;
   }
       stage->pc = cpu->pc;
 
@@ -298,6 +305,7 @@
 
 
       if(strcmp(cpu->stage[F].opcode,"HALT")==0){
+        printf("Halt encounter\n" );
         cpu->stage[F].pc = 0;
         cpu->stage[F].rs1 = 0;
         cpu->stage[F].rs2 = 0;
@@ -305,12 +313,13 @@
         cpu->stage[F].rd = 0;
         strcpy(cpu->stage[F].opcode, "");
 
-        //cpu->pc = 0;
+        //cpu->pc = 4000;
 
-        return 0;
+        //return 0;
 
       }
       else {
+
     /*  if(strcmp(stage->opcode,"")==0){
 
         return 0;
@@ -370,44 +379,31 @@
    */
 
   void showRt(){
+printf("showRt: %d \n",current_branch_pc );
 
     if(flush_branch){
 
-      for (int k =0;k<rt_count;i++){
-
+      for (int k =0;k<rt_count;k++){
+        //printf("rt_pc: %d\n",rt[k].rt_pc );
       if(rt[k].rt_pc>=current_branch_pc){
 
-        rt[rt_count].rt_pc = 0;
-        rt[rt_count].p_rd =  0;
-        rt[rt_count].p_id = 0;
-        rt[rt_count].valid = 0;
-        rt_count--;
-
-
-
+        rt[k].rt_pc = 0;
+        rt[k].p_rd =  0;
+        rt[k].p_id = 0;
+        rt[k].valid = 0;
+        //rt_count--;
       }
-
-
       }
-
-
-
-
     }
-
-
-
 
     printf("\n~~~~~~~~Rename Table~~~~~~~~~\n" );
 
-       for (int k = 0;k<rt_count; k++){
-         if(rt[k].valid)
-        printf("R[%d]--->P%d\n",rt[k].p_rd,rt[k].p_id);
+       for (int o = 0;o<rt_count; o++){
+        // printf("rt_count: %d\n",rt_count );
+         if(rt[o].valid)
+        printf("R[%d]--->P%d rt_pc : %d\n",rt[o].p_rd,rt[o].p_id,rt[o].rt_pc);
        }
      printf("~~~~~~~~~~~~~~~~~\n" );
-
-
-
   }
 
 
@@ -416,17 +412,17 @@
   int decode(APEX_CPU* cpu)
   {
     CPU_Stage* stage = &cpu->stage[DRF];
+    if(stage->pc!=0){
 
 
 
-      pc = stage->pc;
 
       if (strcmp(stage->opcode,"")==0){
         cpu->stage[DRF].pc = 0;
         cpu->stage[DRF].rs1 = 0;
         cpu->stage[DRF].rs2 = 0;
         strcpy(cpu->stage[DRF].opcode, "");
-        flush_branch = 0;
+        //flush_branch = 0;
         }
 
 
@@ -434,7 +430,10 @@
               cpu->stage[DRF].pc = 0;
               cpu->stage[DRF].rs1 = 0;
               cpu->stage[DRF].rs2 = 0;
+              cpu->stage[DRF].rd = 0;
               strcpy(cpu->stage[DRF].opcode, "");
+              showRt();
+
               print_stage_content("DECODE_RF_STAGE --->", stage);
               return 0;
 
@@ -442,26 +441,40 @@
 
             }
 
-      if(strcmp(stage->opcode,"STR") != 0 || strcmp(stage->opcode,"STORE") != 0 || strcmp(stage->opcode,"BZ")!= 0)
+      if(strcmp(stage->opcode,"STR") != 0 || strcmp(stage->opcode,"STORE") != 0 || strcmp(stage->opcode,"BZ")!= 0
+      || strcmp(stage->opcode,"")!=0 || stage->pc !=0)
       {
-
+        printf("decode opcode: '%s'\n",stage->opcode );
 
       for (int i = 0;i<rt_count; i++){
-            if(rt[i].p_rd == stage->rd )
+
+            if(rt[i].p_rd == stage->rd && rt[i].valid )
             {
               equal = 1;
               break;
             }
+          /* if(!rt[i].valid){
+              printf("not equal and invalid\n" );
+             rt[i].rt_pc = stage->pc;
+             rt[i].p_rd =  stage->rd;
+             rt[i].p_id = rt_count;
+             rt[i].valid = 1;
+           }*/
+
 
       }
-
+        printf("i: %d\n",i );
       if(!equal ){
-        rt[rt_count].rt_pc = stage->pc;
-        rt[rt_count].p_rd =  stage->rd;
-        rt[rt_count].p_id = rt_count;
-        rt[rt_count].valid = 1;
+        for (int j = 0; j<24;j++ ){
+          if (!rt[j].valid){
+        rt[j].rt_pc = stage->pc;
+        rt[j].p_rd =  stage->rd;
+        rt[j].p_id = j;
+        rt[j].valid = 1;
         rt_count++;
-
+        break;
+      }
+}
         //printf("p_rd: %d rd: %d p: %d \n",rt[rt].p_rd ,stage->rd,rt[i].p_id );
       }
       equal =0;
@@ -471,9 +484,10 @@
   showRt();
 
       cpu->stage[STATES] = cpu->stage[DRF];
+
       if (ENABLE_DEBUG_MESSAGES ) {
         print_stage_content("DECODE_RF_STAGE --->", stage);
-        rd_val++;
+
       }
 
 
@@ -491,8 +505,11 @@
 
 
 
+}
+else {showRt();
+  print_stage_content("DECODE_RF_STAGE --->", stage);
 
-
+}
     return 0;
   }
   /*
@@ -1034,9 +1051,12 @@
 
   int branch (APEX_CPU* cpu){
   CPU_Stage* stage = &cpu->stage[BRANCH];
-  if (strcmp(stage->opcode, "BZ") == 0 ) {
+
 
   if (z == 0){
+  if (strcmp(stage->opcode, "BZ") == 0 ) {
+
+
 
 
   //printf("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh %d\n",stage->pc );
@@ -1050,8 +1070,8 @@
 
 
 
-  flush_branch =1;
-
+  flush_branch++;
+//printf("flush_branch: %d\n",flush_branch );
 
 
 
@@ -1061,17 +1081,19 @@
   }
 
   }
-  if ( strcmp(stage->opcode, "BNZ") == 0){
-
   if (z != 0)
   {
+  if ( strcmp(stage->opcode, "BNZ") == 0){
+
+
     branch_pc = stage->pc + stage->imm;
 
     if(stage->imm<0)
     current_branch_pc = branch_pc;
     else
     current_branch_pc = stage->pc;
-    flush_branch =1;
+    flush_branch++;
+    //printf("flush_branch: %d\n",flush_branch );
 
 
 
@@ -1296,6 +1318,20 @@
   //printf("%d\n", stage->same);
   if (strcmp(stage->opcode, "MUL") == 0) {
 
+
+
+
+
+
+
+//if(cpu->stage[MUL_FU3].pc < cpu->stage[INT_FU2].pc)
+
+
+
+
+
+
+
   if(!cpu->stage[WB].busy){
   cpu->stage[WB] = cpu->stage[MUL_FU3];
 
@@ -1396,18 +1432,28 @@
          z = 1;
       }
       else z = 0;
-      /* Copy data from Execute latch to Memory latch*/
-      cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
+
 
       if (ENABLE_DEBUG_MESSAGES) {
            print_stage_content("INT1_FU_STAGE ---> ", stage);
            }
 
 
-           cpu->stage[INT_FU1].pc = 0;
-           cpu->stage[INT_FU1].rs1 = 0;
-           cpu->stage[INT_FU1].rs2 = 0;
-           strcpy(cpu->stage[INT_FU1].opcode, "");
+      /* Copy data from Execute latch to Memory latch*/
+
+      cpu->stage[INT_FU2] = cpu->stage[INT_FU1];
+      //cpu->stage[INT_FU2].busy =1;
+      cpu->stage[INT_FU1].pc = 0;
+      cpu->stage[INT_FU1].rs1 = 0;
+      cpu->stage[INT_FU1].rs2 = 0;
+      strcpy(cpu->stage[INT_FU1].opcode, "");
+
+
+
+
+
+
+
 
 
 
@@ -1419,6 +1465,7 @@
 
   {
     CPU_Stage* stage = &cpu->stage[INT_FU2];
+      cpu->stage[INT_FU2].busy =1;
 
       /* Store */
 
@@ -1482,27 +1529,48 @@
       if (strcmp(stage->opcode, "SUBL") == 0) {
       stage->rd_value = stage->buffer;
 
-      }
+    }
+
+    if (ENABLE_DEBUG_MESSAGES) {
+
+      print_stage_content("INT2_FU_STAGE --->", stage);
+
+    }
 
       /* Copy data from Execute latch to Memory latch*/
       if (strcmp(cpu->stage[INT_FU2].opcode,"")!=0){
 
-      cpu->stage[WB] = cpu->stage[INT_FU2];
+
       //printf("add: %d\n",stage->rd_value );
-      cpu->stage[WB].busy = 1;
-  }
 
 
 
-      if (ENABLE_DEBUG_MESSAGES) {
 
-        print_stage_content("INT2_FU_STAGE --->", stage);
 
-      }
-      cpu->stage[INT_FU2].pc = 0;
-      cpu->stage[INT_FU2].rs1 = 0;
-      cpu->stage[INT_FU2].rs2 = 0;
-      strcpy(cpu->stage[INT_FU2].opcode, "");
+        //printf("mulFU3: %d WB: %d\n",cpu->stage[MUL_FU3].pc,cpu->stage[INT_FU2].pc );
+
+
+          cpu->stage[WB] = cpu->stage[INT_FU2];
+
+          cpu->stage[WB].busy = 1;
+          cpu->stage[INT_FU2].pc = 0;
+          cpu->stage[INT_FU2].rs1 = 0;
+          cpu->stage[INT_FU2].rs2 = 0;
+          strcpy(cpu->stage[INT_FU2].opcode, "");
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     return 0;
@@ -1513,16 +1581,30 @@
 
     if (rob[headROB].rd_ready && headROB<rob_count )
     {
+
     //  printf("**************************headROB: %d rob_count: %d\n",headROB,rob_count );
 
-
-
-      for(int i = 0;i<rt_count;i++){
-        if(rob[headROB].rd == rt[i].p_rd ){
-
-         rt[i].valid = 0;
+      for(int i = headROB+1;i<rob_count;i++){
+        if(rob[headROB].rd == rob[i].rd || rob[headROB].rd == rob[i].rs1 || rob[headROB].rd == rob[i].rs2){
+          count_rt_to_invalid_rt_rd++;
        }
     }
+
+    if (count_rt_to_invalid_rt_rd == 0)
+    {
+      for (int j = 0; j< rt_count ; j++){
+        if(rob[headROB].rd == rt[j].p_rd){
+
+        rt[j].valid = 0;
+        rt[j].p_rd = 0;
+        rt[j].p_id = 0;
+      }
+        }
+  // count_rt_to_invalid_rt_rd=0;
+}
+count_rt_to_invalid_rt_rd = 0;
+
+
   // if(store)
     if (strcmp(rob[headROB].opcode,"STORE")!=0 || strcmp(rob[headROB].opcode,"STR")!=0 || strcmp(rob[headROB].opcode,"BZ")!=0 || strcmp(rob[headROB].opcode,"BNZ")!=0
      || strcmp(rob[headROB].opcode,"JUMP")!=0){
